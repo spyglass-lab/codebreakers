@@ -128,7 +128,8 @@ textarea:focus, input:focus { outline: 2px solid var(--gold); }
 table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
 th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
 th { background: var(--panel); color: var(--gold); font-weight: 700; }
-tr.g td:nth-child(6) { color: var(--green); } tr.b td:nth-child(6) { color: var(--red); } tr.w td:nth-child(6) { color: var(--gold); }
+table:not(.simple) tr.g td:nth-child(6) { color: var(--green); } table:not(.simple) tr.b td:nth-child(6) { color: var(--red); } table:not(.simple) tr.w td:nth-child(6) { color: var(--gold); }
+.simple tr.g td:nth-child(3) { color: var(--green); } .simple tr.b td:nth-child(3) { color: var(--red); } .simple tr.w td:nth-child(3) { color: var(--gold); }
 td div + div { margin-top: 4px; }
 .mono { font-family: "Courier New", monospace; }
 .roles { display: flex; gap: 3px; margin-top: 4px; } .roles span { font: 700 11px "Courier New", monospace; padding: 1px 4px; border: 1px solid var(--line); color: var(--dim); }
@@ -158,10 +159,11 @@ a.btn { display: inline-block; text-decoration: none; } .btn:focus-visible, a:fo
 .jump { margin: 2px 0 0; padding-left: 20px; columns: 2; } .jump li { margin: 3px 0; }
 .plan, .share { background: var(--panel); border: 1px solid var(--line); padding: 12px 18px; margin: 14px 0 0; }
 .plan ol { margin: 6px 0 0; padding-left: 22px; } .share { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; } .share p { margin: 0; }
+.more { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 12px; } .more > summary { cursor: pointer; font-weight: 700; color: var(--gold); padding: 6px 0; } .more[open] > summary { margin-bottom: 8px; }
 
 </style></head><body><main class="wrap"><h1>CODEBREAKERS · TEACHER CHECK</h1>
 <p class="lead">Check students' private submissions. Every Signal ID is tested, so you can see who really decoded classmates from all five roles. Nothing you paste here is saved or sent anywhere.</p>
-<section class="how"><ol><li>Copy one or more submissions (each starts with <b>MISSION COMPLETE</b>) and paste them all into the box. They can be one after another.</li><li>Press <b>Check</b>. Each student gets a row: their own Signal ID, which roles they decoded, whether the six messages are right, and anything to look at.</li><li>Use <b>Copy results for a spreadsheet</b> to paste the table into your gradebook sheet.</li></ol></section>
+<section class="how"><ol><li>Copy one or more submissions (each starts with <b>MISSION COMPLETE</b>) and paste them all into the box. They can be one after another.</li><li>Press <b>Check</b>. Each student gets one row: whether they are done, how many classmates they decoded, how many replies they posted, how many classmates decoded them, and anything to look at.</li><li>Use <b>Copy for a spreadsheet</b> if you want the table elsewhere. Full details, Trust or Traitor and the Unmasking are under the table, closed until you open them.</li></ol></section>
 <h2>SUBMISSIONS</h2><label class="small" for="subs">Paste submissions here</label><textarea id="subs" spellcheck="false" placeholder="MISSION COMPLETE · ..."></textarea>
 <div class="row"><button class="btn" id="go">Check</button><button class="btn ghost" id="clear">Clear</button></div><div id="out" aria-live="polite"></div>
 <h2>LOOK UP ONE SIGNAL ID</h2><p class="small">See the role, ending and all six choices behind any Signal ID, for example one on a Padlet card.</p>
@@ -741,7 +743,17 @@ if (typeof module !== "undefined") module.exports = Logic;
     const rcCell = (r) => r.rc.good.length ? `${r.rc.good.length}<div class="mono small">${r.rc.good.map((x) => esc(x.code)).join(" ")}</div>` : (r.sub.hasRc ? "0" : "—");
     const agCell = (r) => r.agent ? `${r.agent.p.alleg ? "Double" : "Loyal"}: ${r.agent.pts}` : "—";
     const nOk = rows.filter((r) => r.ok).length, nNote = rows.filter((r) => r.ok && r.warn.length).length;
-    $("#out").innerHTML = `<p class="sum"><b>${rows.length}</b> submission${rows.length > 1 ? "s" : ""} checked · <b class="ok">${nOk} complete</b>${nNote ? ` (${nNote} with a note to check)` : ""} · <b class="bad">${rows.length - nOk} not complete</b></p>
+    /* Engagement view (v5): Done? plus who each student connected with. "Decoded by" counts other pasted submissions that list this student's own Signal ID. No flag for a low count (teacher's choice). */
+    const decodedBy = (r) => rows.filter((o) => o !== r && (r.sub.own || []).some((id) => o.sub.dec.indexOf(id) >= 0)).length;
+    const nDec = (r) => r.sub.dec.filter((id) => L.parseSignal(id) && (r.sub.own || []).indexOf(id) < 0).length;
+    const doneTxt = (r) => r.ok ? (r.warn.length ? "✓ Done, see note" : "✓ Done") : "✗ Not done";
+    $("#out").innerHTML = `<p class="sum"><b>${rows.length}</b> submission${rows.length > 1 ? "s" : ""} checked · <b class="ok">${nOk} done</b>${nNote ? ` (${nNote} with a note)` : ""} · <b class="bad">${rows.length - nOk} not done</b></p>
+      <table class="simple"><thead><tr><th>Student</th><th>Role</th><th>Done?</th><th>Classmates decoded</th><th>Replies posted</th><th>Decoded by</th><th>Notes</th></tr></thead><tbody>${rows.map((r) => `<tr class="${r.ok ? (r.warn.length ? "w" : "g") : "b"}">
+        <td>${esc(r.sub.name)}</td><td>${esc(r.role ? r.role.name : r.sub.roleName || "?")}</td><td><b>${doneTxt(r)}</b></td><td>${nDec(r)}</td><td>${r.sub.hasRc ? r.rc.good.length : "—"}</td><td>${decodedBy(r)}</td>
+        <td>${r.notes.concat(r.warn).map((n) => `<div>${esc(n)}</div>`).join("") || ""}</td></tr>`).join("")}</tbody></table>
+      <div class="row"><button class="btn" id="tsv1">Copy for a spreadsheet</button><span class="small" id="tsv1msg" role="status"></span></div>
+      <p class="small"><b>Done?</b> means all six messages are right and all five roles are covered. <b>Replies posted</b> counts the reply proof codes that match the student; to confirm one, search the Padlet for it (Ctrl+F). <b>Decoded by</b> counts classmates in this paste who decoded the student, so it grows as more submissions come in.</p>
+      <details class="more"><summary>Full details, Trust or Traitor and the Unmasking</summary>
       <table><thead><tr><th>Student</th><th>Role</th><th>Own Signal ID</th><th>Roles covered</th><th>Messages</th><th>Result</th><th>Reply codes</th><th>Verdicts</th><th>As agent</th><th>Notes</th></tr></thead><tbody>${rows.map((r) => `<tr class="${r.ok ? (r.warn.length ? "w" : "g") : "b"}">
         <td>${esc(r.sub.name)}</td><td>${esc(r.role ? r.role.name : r.sub.roleName || "?")}</td><td class="mono">${esc((r.sub.own || []).join(", ") || "none")}</td>
         <td>${r.nRoles} of 5<div class="roles">${D.ROLES.map((x) => `<span class="${r.covered[x.id] ? "on" : ""}" title="${esc(x.name + ": " + (r.covered[x.id] || "missing"))}">${x.id}</span>`).join("")}</div></td>
@@ -750,7 +762,11 @@ if (typeof module !== "undefined") module.exports = Logic;
       <div class="row"><button class="btn" id="tsv">Copy results for a spreadsheet</button><span class="small" id="tsvmsg" role="status"></span></div>
       <p class="small"><b>Reply codes</b> (version 4 and later): every reply the game writes carries a proof code such as R-7KQ, made from the student's own Signal ID and the classmate's, so only codes that match the student are counted. To confirm a reply was really posted, search the Padlet for its code (Ctrl+F) and check it sits under this student's name.</p>
       <p class="small"><b>Verdicts</b> (Trust or Traitor): +1 for the right verdict; on a double agent, +1 more for the right report and +1 for the right truth. A perfect verdict made with research (a blacked-out line revealed in the Archive) scores 2 instead of 3. <b>As agent</b>: a loyal agent scores 1 per classmate who approved them, a double agent 1 per classmate fooled.</p>
-      <div class="row"><button class="btn ghost" id="unbtn" aria-expanded="false">Show the Unmasking</button><span class="small">Reveals who was a double agent. Show it to the class only when everyone is done.</span></div><div id="unmask" hidden>${unmaskHTML(rows, ag)}</div>`;
+      <div class="row"><button class="btn ghost" id="unbtn" aria-expanded="false">Show the Unmasking</button><span class="small">Reveals who was a double agent. Show it to the class only when everyone is done.</span></div><div id="unmask" hidden>${unmaskHTML(rows, ag)}</div></details>`;
+    $("#tsv1").addEventListener("click", () => {
+      const tsv = [["Student", "Role", "Done", "Classmates decoded", "Replies posted", "Decoded by", "Notes"].join("\t")].concat(rows.map((r) => [r.sub.name, r.role ? r.role.name : r.sub.roleName, r.ok ? "Done" : "Not done", nDec(r), r.sub.hasRc ? r.rc.good.length : "", decodedBy(r), r.notes.concat(r.warn).join(" ")].join("\t"))).join("\n");
+      navigator.clipboard.writeText(tsv).then(() => { $("#tsv1msg").textContent = "Copied. Paste into a spreadsheet."; }, () => { $("#tsv1msg").textContent = "Your browser would not copy."; });
+    });
     $("#unbtn").addEventListener("click", (e) => { const u = $("#unmask"), open = u.hidden; u.hidden = !open; e.currentTarget.textContent = open ? "Hide the Unmasking" : "Show the Unmasking"; e.currentTarget.setAttribute("aria-expanded", open); if (open) u.scrollIntoView({ block: "start" }); });
     $("#tsv").addEventListener("click", () => {
       const tsv = [["Student", "Role", "Own Signal ID", "Roles covered", "Messages", "Result", "Reply codes", "Verdict points", "Verdicts filed", "Research used", "Allegiance", "Agent points", "Notes"].join("\t")].concat(rows.map((r) => [r.sub.name, r.role ? r.role.name : r.sub.roleName, (r.sub.own || []).join(" "), r.nRoles + "/5", r.right + "/6", r.ok ? (r.warn.length ? "Complete (check note)" : "Complete") : "Not complete", r.rc.good.map((x) => x.code).join(" "), r.vs.n ? r.vs.pts + "/" + r.vs.max : "", r.vs.n, r.vs.res, r.agent ? (r.agent.p.alleg ? "Double" : "Loyal") : "", r.agent ? r.agent.pts : "", r.notes.concat(r.warn).join(" ")].join("\t"))).join("\n");

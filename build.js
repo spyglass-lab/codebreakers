@@ -43,7 +43,7 @@ fs.writeFileSync(__dirname + "/dist/check.html", `<!doctype html><html lang="en"
 ${r("checker.css")}
 </style></head><body><main class="wrap"><h1>CODEBREAKERS · TEACHER CHECK</h1>
 <p class="lead">Check students' private submissions. Every Signal ID is tested, so you can see who really decoded classmates from all five roles. Nothing you paste here is saved or sent anywhere.</p>
-<section class="how"><ol><li>Copy one or more submissions (each starts with <b>MISSION COMPLETE</b>) and paste them all into the box. They can be one after another.</li><li>Press <b>Check</b>. Each student gets a row: their own Signal ID, which roles they decoded, whether the six messages are right, and anything to look at.</li><li>Use <b>Copy results for a spreadsheet</b> to paste the table into your gradebook sheet.</li></ol></section>
+<section class="how"><ol><li>Copy one or more submissions (each starts with <b>MISSION COMPLETE</b>) and paste them all into the box. They can be one after another.</li><li>Press <b>Check</b>. Each student gets one row: whether they are done, how many classmates they decoded, how many replies they posted, how many classmates decoded them, and anything to look at.</li><li>Use <b>Copy for a spreadsheet</b> if you want the table elsewhere. Full details, Trust or Traitor and the Unmasking are under the table, closed until you open them.</li></ol></section>
 <h2>SUBMISSIONS</h2><label class="small" for="subs">Paste submissions here</label><textarea id="subs" spellcheck="false" placeholder="MISSION COMPLETE · ..."></textarea>
 <div class="row"><button class="btn" id="go">Check</button><button class="btn ghost" id="clear">Clear</button></div><div id="out" aria-live="polite"></div>
 <h2>LOOK UP ONE SIGNAL ID</h2><p class="small">See the role, ending and all six choices behind any Signal ID, for example one on a Padlet card.</p>
@@ -56,6 +56,6 @@ const SITE = "https://spyglass-lab.github.io/codebreakers/";
 const guide = (note, base) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Codebreakers: For Teachers</title>${fonts}<style>
 ${r("checker.css")}
 </style></head><body>${r("guide.html").split("{{VERSION_NOTE}}").join(note).split("{{GAME_URL}}").join(base).split("{{CHECK_URL}}").join(base + "check.html").split("{{SITE}}").join(SITE)}</body></html>`;
-fs.writeFileSync(__dirname + "/dist/teachers.html", guide(`This is the <b>latest version</b>, which changes whenever the game is improved. To use the game with a class, or to share it with other teachers, use the frozen version, which never changes mid-unit: <a href="v4/teachers.html">${SITE}v4/teachers.html</a>.`, SITE));
+fs.writeFileSync(__dirname + "/dist/teachers.html", guide(`This is the <b>latest version</b>, which changes whenever the game is improved. To use the game with a class, or to share it with other teachers, use the frozen version, which never changes mid-unit: <a href="v5/teachers.html">${SITE}v5/teachers.html</a>.`, SITE));
 module.exports = { guide, SITE };
 console.log("built", (html.length / 1024).toFixed(0) + " KB");

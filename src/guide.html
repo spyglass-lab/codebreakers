@@ -9,7 +9,7 @@
 <div class="tiles">
 <div class="tile t-game"><p class="tk">FOR STUDENTS</p><h3>The game</h3><p>Students play here, on any computer. No accounts.</p><p class="url mono">{{GAME_URL}}</p><div class="row"><a class="btn" href="./">Open the game</a><button class="btn ghost" type="button" data-copy="{{GAME_URL}}">Copy student link</button></div></div>
 <div class="tile t-padlet"><p class="tk">BEFORE CLASS</p><h3>Your class Padlet</h3><p>One click makes your own copy, with the role columns, welcome post and example card ready.</p><div class="row"><a class="btn" href="https://padlet.com/commonwealthcharter/remake-link/1JkMb04BV11JbdD8">Make my Padlet</a></div><p class="small">Sign in to Padlet first. The welcome post tells students to turn in their work on edio; edit its last step if your school uses something else.</p></div>
-<div class="tile t-check"><p class="tk">FOR GRADING · TEACHERS ONLY</p><h3>Teacher Check</h3><p>Paste submissions to check every Signal ID and message, score Trust or Traitor, and show the Unmasking.</p><div class="row"><a class="btn" href="check.html">Open Teacher Check</a></div><p class="small">Keep this link to yourself.</p></div>
+<div class="tile t-check"><p class="tk">FOR GRADING · TEACHERS ONLY</p><h3>Teacher Check</h3><p>Paste the submissions from edio. See who is done and who each student connected with. Trust or Traitor and the Unmasking are one click away.</p><div class="row"><a class="btn" href="check.html">Open Teacher Check</a></div><p class="small">Keep this link to yourself.</p></div>
 <div class="tile t-lesson"><p class="tk">OPTIONAL · ABOUT 20 MINUTES</p><h3>Mini lesson slides</h3><p>Secrets of the Hidden War: real codebreakers, spies and deceivers, with a myth-or-fact warm-up and speaker notes (press N).</p><div class="row"><a class="btn" href="{{SITE}}slides/mini-lesson/">Open the mini lesson</a></div></div>
 <div class="tile t-brief"><p class="tk">BEFORE PLAYING</p><h3>Class briefing slides</h3><p>How to play, the Padlet, Trust or Traitor, the rules and how students get credit, with speaker notes (press N).</p><div class="row"><a class="btn" href="{{SITE}}slides/briefing/">Open the briefing</a></div></div>
 <div class="tile t-guide"><p class="tk">READ ONCE</p><h3>This guide</h3><ul class="jump"><li><a href="#before">Before class</a></li><li><a href="#inclass">In class</a></li><li><a href="#tot">Trust or Traitor</a></li><li><a href="#grading">Grading</a></li><li><a href="#privacy">Privacy</a></li></ul></div>
@@ -19,7 +19,7 @@
 <li><b>Optional, the mini lesson:</b> it isn't needed to play. It gives more context for the game if your students aren't familiar with the tradecraft of WWII: codebreaking, spies, double agents and deception.</li>
 <li><b>Play:</b> show the class briefing, then students play all six rounds.</li>
 <li><b>Decode:</b> students post their cards, decode classmates, file verdicts and submit.</li>
-<li><b>After:</b> grade with Teacher Check, then show the class the Unmasking.</li>
+<li><b>After:</b> paste the edio submissions into Teacher Check to see who is done. Showing the class the Unmasking is optional.</li>
 </ol></div>
 <div class="share"><div><p class="tk">SHARE WITH ANOTHER TEACHER</p><p>Send them this page. Everything they need is linked here, and this version never changes mid-unit.</p></div><button class="btn" type="button" data-copy="page">Copy link to this page</button></div>
 <p class="small cmsg" role="status" aria-live="polite"></p>
@@ -71,9 +71,10 @@ document.querySelectorAll("[data-copy]").forEach(function (b) { b.addEventListen
 <h2 id="grading">GRADING</h2>
 <ol>
 <li>Collect the submissions and paste them, all at once, into <a href="check.html">Teacher Check</a>.</li>
-<li>Each student gets a row: whether their own Signal ID is real, which of the five roles they covered, whether the six messages are right, their reply proof codes (only codes that match the student count), their Trust or Traitor verdict points and research count, their points as an agent, and anything to look at (made-up Signal IDs, two students with the same Signal ID, reflections copied word for word).</li>
+<li>Each student gets one short row: <b>Done?</b> (all six messages right and all five roles covered), how many <b>classmates they decoded</b>, how many <b>replies they posted</b> (proof codes that match the student), how many classmates <b>decoded them</b>, and a note if something needs a look (a made-up Signal ID, two students with the same Signal ID, a reflection copied word for word, a reply code that isn't theirs).</li>
+<li><b>Full details, Trust or Traitor and the Unmasking</b> open with one click under the table, if you want them. You can skip them entirely.</li>
 <li><b>Checking replies:</b> to confirm a student really posted a reply, search the Padlet for one of their proof codes (Ctrl+F on the board) and check the reply sits under their name. Spot-check a few codes per student; you don't need to check them all.</li>
-<li>Use <b>Copy results for a spreadsheet</b> to paste the table into your gradebook. <b>Look up one Signal ID</b> shows the choices behind any card on the Padlet.</li>
+<li>Use <b>Copy for a spreadsheet</b> to paste the short table anywhere you like. <b>Look up one Signal ID</b> shows the choices behind any card on the Padlet.</li>
 </ol>
 <p class="small">Known limits: Signal IDs are checked, but they are not tamper-proof, and a Signal ID from another class works in any class. Teacher Check flags the most common shortcuts; it does not replace your judgment.</p>
 
