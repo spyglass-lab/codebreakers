@@ -276,3 +276,7 @@ Why: the teacher wants grading to be light ("make sure any teachers do not feel 
 - The old full table, its spreadsheet copy, the scoring notes and the Unmasking sit inside a closed `<details class="more">` ("Full details, Trust or Traitor and the Unmasking").
 - Guide grading steps, hub tile and "After" step updated (the Unmasking is optional). The game itself is unchanged from v4. Class Padlet description and the Spyglass Lab home page link `/v5/`.
 - Not built (offered): a quick-start top for the guide, a "fewest replies first" welcome-post line, a mid-day tip to scan the Padlet for cards with 0 comments.
+
+## Teacher page trimmed (2026-11-24)
+
+The teacher no longer plans to share outside their school, so the Privacy, Historical Accuracy and Credits sections were removed from the For Teachers guide (and the "Privacy" jump link in the hub). One small line stays at the bottom: "Map borders: CShapes 2.0, ETH Zürich (CC BY-NC-SA 4.0). Coastlines: Natural Earth.", because the CShapes licence requires credit while the page is public. `v5/teachers.html` was rebuilt in place at the teacher's request (guide only, same "frozen 2026-11-23" note); the v5 game and Teacher Check are unchanged. Older versions keep their sections.
