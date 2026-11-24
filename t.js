@@ -29,13 +29,17 @@ const { chromium } = require('playwright'); const L = require('./src/logic.js');
   await p.screenshot({ path: `shots/${mode}-end.png`, fullPage: true });
   // decode another role (a double agent who falsified report 2), use the Archive, interrogate
   const o = role === 'NV' ? 'BP' : 'NV'; const S = L.newState(L.roleById(o), 'x'); for (let r = 0; r < 6; r++) { S.i = r; L.choose(S, r % 3); } S.alg = { v: 2, r: 5 }; const sid = L.signalId(S);
-  await p.fill('#sid', sid); await p.click('#dgo'); await p.waitForSelector('.decoded'); await p.waitForSelector('[data-v]');
+  await p.fill('#sid', 'Some Name\nSIGNAL ID: ' + sid + '\n━━━━\nQUESTIONS FOR YOU\n1. Was it worth it?\n#NeedToKnow\nDECODED ' + id + ' (a reply)'); await p.keyboard.press('Enter'); await p.waitForSelector('.decoded'); await p.waitForSelector('[data-v]');
+  if (!(await p.textContent('.decoded .src')).includes(sid)) errs.push('PASTED POST decoded the wrong ID');
+  if (await p.isVisible('#cprep')) errs.push('reply shown before a verdict');
   { const rt = await p.inputValue('#rtext'); if (!rt.includes('PROOF ' + L.proofCode(id, sid))) errs.push('REPLY has no matching proof code'); }
   await p.click('#iarch'); await p.waitForSelector('.archive .dossier'); await p.click('.ftab:nth-child(2)'); await p.hover('.archive .red'); await p.waitForTimeout(500); await p.screenshot({ path: `shots/${mode}-archive.png` }); await p.keyboard.press('Escape');
   if (/SEAL /.test(await p.inputValue('#rtext'))) errs.push('REPLY has a SEAL before a verdict');
   if (await p.$('.cmp')) errs.push('COMPARE box shown with no teammate decoded'); if (!/Go with your gut/.test(await p.innerText('.interro'))) errs.push('gut-call line missing');
-  if (!(await p.isDisabled('#ifile'))) errs.push('verdict could be sealed with no choice');
-  await p.click('[data-v="D"]'); await p.click('#ifile');
+  await p.click('[data-v="D"]'); await p.waitForSelector('.vfiled'); await p.waitForTimeout(300);
+  if (!/Reply copied/.test(await p.textContent('#rmsg'))) errs.push('ONE CLICK did not copy the reply: ' + await p.textContent('#rmsg'));
+  if (!(await p.isVisible('#cprep'))) errs.push('reply block hidden after verdict');
+  { const rt = await p.inputValue('#rtext'), r = +(await p.inputValue('#rr')); const me = L.parseSignal(id).picks[r].label, them = L.parseSignal(sid).picks[r].label; if (me === them && L.parseSignal(id).picks.some((x, i) => x.label !== L.parseSignal(sid).picks[i].label)) errs.push('AUTO ROUND picked a round with the same choice'); if (!rt.includes('ROUND ' + (r + 1))) errs.push('reply round mismatch'); }
   { const rt = await p.inputValue('#rtext'); if (!rt.includes('SEAL ' + L.sealCode(id, sid, 1))) errs.push('REPLY has no matching SEAL:\n' + rt); } await p.waitForSelector('.vfiled'); await p.screenshot({ path: `shots/${mode}-decoded.png`, fullPage: true });
   await p.click('[data-go="board"]'); await p.waitForTimeout(200); await p.screenshot({ path: `shots/${mode}-board.png`, fullPage: true });
   const bd = await p.evaluate(() => JSON.parse(localStorage.getItem('cb_board'))); const v = (bd.verdicts || {})[sid];

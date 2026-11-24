@@ -479,25 +479,36 @@
   }
 
   /* ---------- decoder ---------- */
-  function decoderForm() { return `<div class="dform"><label for="sid" class="sr">Signal ID</label><input id="sid" placeholder="Example: BP-ACBACB-K-FD" autocomplete="off" spellcheck="false" maxlength="16"><button class="btn" id="dgo">Decode</button></div><p class="err" id="derr" role="alert"></p><div id="dres" aria-live="polite"></div>`; }
+  function decoderForm() { return `<div class="dform"><label for="sid" class="sr">Their Padlet post or Signal ID</label><textarea id="sid" rows="2" placeholder="Copy their whole Padlet post and paste it here (or type their Signal ID)" autocomplete="off" spellcheck="false"></textarea><button class="btn" id="dgo">Decode</button></div><p class="err" id="derr" role="alert"></p><div id="dres" aria-live="polite"></div>`; }
+  /* v7: students can paste a classmate's whole Padlet post. Prefer the ID after "SIGNAL ID", else the first ID that decodes. */
+  function findSignal(raw) {
+    const t = String(raw || "").toUpperCase(), RE = /[A-Z]{2}\s*-\s*[ABC]{6}(?:\s*-\s*[A-Z0-9])?\s*-\s*[A-Z0-9]{2}(?![A-Z0-9])/g;
+    const tagged = /SIGNAL\s*ID\s*:?\s*([A-Z0-9\s-]{10,24})/.exec(t), first = tagged && L.parseSignal((tagged[1].match(RE) || [""])[0]);
+    if (first) return first;
+    for (const m of t.match(RE) || []) { const p = L.parseSignal(m); if (p) return p; }
+    return L.parseSignal(t);
+  }
   function bindDecoder() {
     const run = () => {
-      const p = L.parseSignal($("#sid").value), err = $("#derr"); $("#dres").innerHTML = "";
-      if (!p) { err.textContent = "That Signal ID does not decode. Check the letters and dashes. It looks like XX-ABCABC-K-YY."; return; }
+      const raw = $("#sid").value, p = findSignal(raw), err = $("#derr"); $("#dres").innerHTML = "";
+      if (!p) { err.textContent = raw.trim().length > 20 ? "No Signal ID found in what you pasted. Copy their whole Padlet post, including the SIGNAL ID line." : "That Signal ID does not decode. Check the letters and dashes. It looks like XX-ABCABC-K-YY."; return; }
+      $("#sid").value = "";
       err.textContent = ""; const b = board(); if (b.sig.indexOf(p.id) < 0) { b.sig.push(p.id); store.set("cb_board", b); }
       lastDecoded = p.id; showDecoded(p);
     };
-    $("#dgo").addEventListener("click", run); $("#sid").addEventListener("keydown", (e) => { if (e.key === "Enter") run(); });
+    $("#dgo").addEventListener("click", run); $("#sid").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); run(); } });
     if (lastDecoded && view === "board") { const p = L.parseSignal(lastDecoded); if (p) { $("#sid").value = ""; } }
   }
   function decodedCard(p) {
     const mine = S && S.role ? S : null;
     const rows = p.picks.map((x, i) => `<li><span class="jd">R${i + 1} · ${esc(rTitle(p.role.id, i))}</span><span class="pc">“${esc(L.piece(i, p.role.id))}”</span><span>${esc(x.label)}</span></li>`).join("");
     const sameRole = mine && mine.role.id === p.role.id;
-    return `<div class="paper decoded"><p class="src">DECODED · ${esc(p.id)}</p><div class="dp"><div>${ART.portrait(p.role.id, "dc" + p.role.id)}</div><div><h3>${esc(p.role.name)}</h3><p><b>${esc(p.ending.title)}</b> · ${esc(p.rank.title)} · score ${p.fs.total}</p><p class="small">Their pieces are now on the board.</p></div></div>${sameRole ? `<p class="warn">This is the same role as yours, so it adds no new pieces. You can still compare their reports with yours below.</p>` : ""}${interHTML(p)}<ol class="journey">${rows}</ol>
+    return `<div class="paper decoded"><p class="src">DECODED · ${esc(p.id)}</p><div class="dp"><div>${ART.portrait(p.role.id, "dc" + p.role.id)}</div><div><h3>${esc(p.role.name)}</h3><p><b>${esc(p.ending.title)}</b> · ${esc(p.rank.title)} · score ${p.fs.total}</p><p class="small">Their pieces are now on the board.</p></div></div>${sameRole ? `<p class="warn">This is the same role as yours, so it adds no new pieces. You can still compare their reports with yours below.</p>` : ""}${interHTML(p)}<section class="replybox" id="replybox"><h3>Your reply for the Padlet</h3><div class="row"><button class="btn" id="cprep">Copy reply</button></div><p class="small cmsg" id="rmsg" role="status"></p>
+      <details class="rmore"><summary>See or change your reply</summary>
       <div class="field"><label for="rr">Reply about round</label><select id="rr">${D.ROUNDS.map((r, i) => `<option value="${i}">${i + 1}. ${esc(rTitle(p.role.id, i))}</option>`).join("")}</select></div>
-      <div class="field"><label for="rq">Question for them (pick one)</label><select id="rq"></select></div>
-      <textarea id="rtext" rows="6" readonly aria-label="Reply text"></textarea><div class="row"><button class="mini" id="cprep">Copy reply</button></div><p class="small cmsg" role="status"></p><p class="small" id="rproof"></p><p class="small">Paste this as a reply on their card post on Padlet.</p></div>`;
+      <div class="field"><label for="rq">Question for them</label><select id="rq"></select></div>
+      <textarea id="rtext" rows="9" readonly aria-label="Reply text"></textarea><p class="small" id="rproof"></p></details></section>
+      <h3 class="theirs">Their choices</h3><ol class="journey">${rows}</ol></div>`;
   }
 
   let repaintReply = null;
@@ -537,17 +548,17 @@
     const box = $("#istep"); if (!box) return;
     const ab = $("#iarch"); if (ab) ab.addEventListener("click", () => openArchive(p.role.id));
     const b0 = board(), filed = (b0.verdicts || {})[p.id];
-    if (filed) { curInt = null; box.innerHTML = `<p class="vfiled"><b>Verdict filed.</b> ${esc(vdText(p, filed))} Your sealed verdict is in the reply below.</p>${unsealed() ? vdResult(p, filed) : `<p class="small">You find out if you were right once you have decoded all six messages.</p>`}`; return; }
-    curInt = p.id; const vd = {};
-    const opt = (attr, val, key, txt, on) => `<button class="mitem" ${attr}="${val}" aria-pressed="${!!on}"><span class="key">${key}</span><span>${txt}</span></button>`;
-    const paint = () => {
-      let h = `<h3>Do you trust this agent?</h3><div class="mlist two" role="group" aria-label="Verdict">${opt("data-v", "A", "T", "<b>TRUST.</b> All three reports are true.", vd.v === "A")}${opt("data-v", "D", "X", "<b>TRAITOR.</b> One report is a lie.", vd.v === "D")}</div>`;
-      h += `<div class="row"><button class="btn" id="ifile"${vd.v ? "" : " disabled"}>Seal my verdict</button></div><p class="small">A sealed verdict can't be changed.</p>`;
-      box.innerHTML = h;
-      $$("[data-v]", box).forEach((x) => x.addEventListener("click", () => { vd.v = x.dataset.v; paint(); }));
-      $("#ifile").addEventListener("click", () => { const b = board(); b.verdicts = b.verdicts || {}; if (b.verdicts[p.id]) return; b.verdicts[p.id] = { v: vd.v }; store.set("cb_board", b); bindInter(p); if (repaintReply) repaintReply(); });
-    };
-    paint();
+    const rb = $("#replybox");
+    if (filed) { curInt = null; if (rb) rb.hidden = false; box.innerHTML = `<p class="vfiled"><b>Verdict sealed.</b> ${esc(vdText(p, filed))} It is inside your reply, below.</p>${unsealed() ? vdResult(p, filed) : `<p class="small">You find out if you were right once you have decoded all six messages.</p>`}`; return; }
+    /* v7: one click seals the verdict, writes the reply and copies it. The reply block stays hidden until then. */
+    curInt = p.id; if (rb) rb.hidden = true;
+    const opt = (val, key, txt) => `<button class="mitem" data-v="${val}"><span class="key">${key}</span><span>${txt}</span></button>`;
+    box.innerHTML = `<h3>Do you trust this agent?</h3><div class="mlist two" role="group" aria-label="Verdict">${opt("A", "T", "<b>TRUST.</b> All three reports are true.")}${opt("D", "X", "<b>TRAITOR.</b> One report is a lie.")}</div><p class="small">One click seals your verdict and copies your reply. A sealed verdict can't be changed.</p>`;
+    $$("[data-v]", box).forEach((x) => x.addEventListener("click", () => {
+      const b = board(); b.verdicts = b.verdicts || {}; if (b.verdicts[p.id]) return; b.verdicts[p.id] = { v: x.dataset.v }; store.set("cb_board", b);
+      bindInter(p); if (repaintReply) repaintReply();
+      const c = $("#cprep"); if (c) { c.click(); c.closest(".replybox").scrollIntoView({ block: "center", behavior: "smooth" }); }
+    }));
   }
 
   /* ---------- Trust or Traitor: the Archive of declassified files ---------- */
@@ -584,14 +595,22 @@
     paint();
   }
 
+  /* The player's own choice labels for each round: the game in progress, else their own finished Signal ID. */
+  function myPicks() { if (S && S.log && S.log.length) return S.log.map((x) => x.label); const q = L.parseSignal(myId()); return q ? q.picks.map((x) => x.label) : []; }
+  /* v7: reply about a round where the two players chose differently (picked by the IDs, so classmates' replies vary); else any round. */
+  function autoRound(p) {
+    const mp = myPicks(), diff = [0, 1, 2, 3, 4, 5].filter((r) => mp[r] && mp[r] !== p.picks[r].label), pool = diff.length ? diff : [0, 1, 2, 3, 4, 5];
+    let h = 0; for (const c of p.id + ">" + (myId() || "")) h = (h * 31 + c.charCodeAt(0)) % 9973; return pool[h % pool.length];
+  }
   const REPLY_QS = ["What did you think would happen when you made that choice?", "Which of Secrecy, Impact or Trust were you protecting?", "Would you make the same choice again? Why or why not?", "What did your role know that other roles did not?"];
   function bindReply(p) {
     const rrs = $("#rr"), rq = $("#rq"), ta = $("#rtext"); if (!rrs) return;
+    rrs.value = String(autoRound(p));   // v7: a round where you chose differently, so the reply starts a real conversation
     const fill = () => { const r = +rrs.value, prev = rq.value; rq.innerHTML = [D.ROUNDS[r].ask].concat(REPLY_QS).map((q, i) => `<option value="${i}">${esc(clip(q, 90))}</option>`).join(""); if (prev) rq.value = prev; paint(); };
     const paint = () => {
-      const r = +rrs.value, qs = [D.ROUNDS[r].ask].concat(REPLY_QS), mineRole = (S && S.role) || (board().own && L.roleById(board().own.role));
+      const r = +rrs.value, qs = [D.ROUNDS[r].ask].concat(REPLY_QS), mineRole = (S && S.role) || (board().own && L.roleById(board().own.role)), mp = myPicks();
       let mine = mineRole ? `I played ${mineRole.name}.` : "";
-      if (S && S.log[r]) mine = `I chose: ${S.log[r].label}\n` + (S.log[r].label === p.picks[r].label ? "We made the same call." : "We made different calls.");
+      if (mp[r]) mine = `I chose: ${mp[r]}\n` + (mp[r] === p.picks[r].label ? "We made the same call." : "We made different calls.");
       const L1 = "━━━━━━━━━━━━━━━━━━━━";
       const me = myId(), proof = me && !isMine(p.id) ? L.proofCode(me, p.id) : null;
       const vd = (board().verdicts || {})[p.id], seal = proof && p.alleg != null && vd ? L.sealCode(me, p.id, vd.v === "A" ? 0 : 1) : null;
@@ -600,7 +619,7 @@
       ta.value = [`DECODED ${p.id} (${p.role.name})`, ...(proof ? [`PROOF ${proof}`] : []), ...(seal ? [`SEAL ${seal}`] : []), L1, `ROUND ${r + 1}: ${rTitle(p.role.id, r)}`, L1, `You chose: ${p.picks[r].label}`, ...(mine ? ["", mine] : []), "", L1, "QUESTION FOR YOU", L1, qs[+rq.value || 0]].join("\n");
     };
     rrs.addEventListener("change", fill); rq.addEventListener("change", paint); fill();
-    $("#cprep").addEventListener("click", (e) => copyText(ta.value, e.currentTarget, "Copied. Paste it as a reply on their Padlet post."));
+    $("#cprep").addEventListener("click", (e) => copyText(ta.value, e.currentTarget, "Reply copied. Paste it as a comment under their card on the Padlet."));
     return paint;
   }
 
