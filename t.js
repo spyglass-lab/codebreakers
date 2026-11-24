@@ -32,11 +32,22 @@ const { chromium } = require('playwright'); const L = require('./src/logic.js');
   await p.fill('#sid', sid); await p.click('#dgo'); await p.waitForSelector('.decoded'); await p.waitForSelector('[data-v]');
   { const rt = await p.inputValue('#rtext'); if (!rt.includes('PROOF ' + L.proofCode(id, sid))) errs.push('REPLY has no matching proof code'); }
   await p.click('#iarch'); await p.waitForSelector('.archive .dossier'); await p.click('.ftab:nth-child(2)'); await p.hover('.archive .red'); await p.waitForTimeout(500); await p.screenshot({ path: `shots/${mode}-archive.png` }); await p.keyboard.press('Escape');
-  await p.click('[data-v="D"]'); await p.click('[data-r="2"]'); for (const x of await p.$$('[data-t]')) if (await x.getAttribute('data-t') === 'T') { await x.click(); break; }
-  await p.click('#ifile'); await p.waitForSelector('.vfiled'); await p.screenshot({ path: `shots/${mode}-decoded.png`, fullPage: true });
+  if (/SEAL /.test(await p.inputValue('#rtext'))) errs.push('REPLY has a SEAL before a verdict');
+  if (!/Find another/.test(await p.innerText('.cmp'))) errs.push('COMPARE hint missing');
+  if (!(await p.isDisabled('#ifile'))) errs.push('verdict could be sealed with no choice');
+  await p.click('[data-v="D"]'); await p.click('#ifile');
+  { const rt = await p.inputValue('#rtext'); if (!rt.includes('SEAL ' + L.sealCode(id, sid, 1))) errs.push('REPLY has no matching SEAL:\n' + rt); } await p.waitForSelector('.vfiled'); await p.screenshot({ path: `shots/${mode}-decoded.png`, fullPage: true });
   await p.click('[data-go="board"]'); await p.waitForTimeout(200); await p.screenshot({ path: `shots/${mode}-board.png`, fullPage: true });
   const bd = await p.evaluate(() => JSON.parse(localStorage.getItem('cb_board'))); const v = (bd.verdicts || {})[sid];
-  if (!v || v.v !== 'D' || v.r !== 2 || v.t !== 'T' || !v.res) errs.push('VERDICT not stored as expected: ' + JSON.stringify(v));
+  if (!v || v.v !== 'D' || Object.keys(v).length !== 1) errs.push('VERDICT not stored as expected: ' + JSON.stringify(v));
+  // a loyal teammate of the double agent: the comparison shows report 2 differs
+  const S2 = L.newState(L.roleById(o), 'y'); for (let r = 0; r < 6; r++) { S2.i = r; L.choose(S2, (r + 1) % 3); } S2.alg = { v: 0, r: 1 }; const sid2 = L.signalId(S2);
+  await p.fill('#sid', sid2); await p.click('#dgo'); await p.waitForSelector('.cmprow'); { const c = await p.innerText('.cmp'); if (!c.includes(sid) || !/Report 2 is different/.test(c) || /Report [13] is different/.test(c)) errs.push('COMPARE wrong: ' + c); }
+  await p.screenshot({ path: `shots/${mode}-compare.png`, fullPage: true });
+  // Who trusted you?: two classmates' seals for this player's card (one trust, one traitor), one pasted twice
+  await p.fill('#sealin', 'DECODED x\nSEAL ' + L.sealCode(sid, id, 0) + '\nblah\nSEAL ' + L.sealCode(sid2, id, 1) + '\nSEAL ' + L.sealCode(sid2, id, 1)); await p.click('#sealgo'); await p.waitForSelector('.sealres');
+  { const t = await p.innerText('.seals'); const want = alg ? 'You fooled 1 of 2' : '1 trusted you'; if (!t.includes(want) || !/Opened 2 new seals\. 1 already opened/.test(t)) errs.push('SEALS wrong: ' + t); }
+  await p.screenshot({ path: `shots/${mode}-seals.png`, fullPage: true });
   if ((await p.evaluate(() => JSON.stringify(localStorage))).indexOf('Marta') >= 0) errs.push('NAME was saved');
   console.log(errs.length ? errs.join('\n') : 'no errors'); await b.close();
 })();

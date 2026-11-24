@@ -165,7 +165,7 @@ a.btn { display: inline-block; text-decoration: none; } .btn:focus-visible, a:fo
 <h1>CODEBREAKERS · FOR TEACHERS</h1>
 <p class="subt2">The Hidden War</p>
 <p class="lead">A WWII intelligence game for high school history. Each student plays one of five intelligence roles across six rounds and a short 1945 epilogue (1939–1945). In each round they crack a short cipher, make a decision, and see what really happened. Then they swap Signal IDs with classmates on Padlet to rebuild six secret messages, which they hand in to you privately.</p>
-<p class="ver">This is the <b>latest version</b>, which changes whenever the game is improved. To use the game with a class, or to share it with other teachers, use the frozen version, which never changes mid-unit: <a href="v5/teachers.html">https://spyglass-lab.github.io/codebreakers/v5/teachers.html</a>.</p>
+<p class="ver">This is the <b>latest version</b>, which changes whenever the game is improved. To use the game with a class, or to share it with other teachers, use the frozen version, which never changes mid-unit: <a href="v6/teachers.html">https://spyglass-lab.github.io/codebreakers/v6/teachers.html</a>.</p>
 
 <section class="hub" aria-labelledby="hubh"><h2 id="hubh">EVERYTHING IN ONE PLACE</h2>
 <div class="tiles">
@@ -205,7 +205,7 @@ document.querySelectorAll("[data-copy]").forEach(function (b) { b.addEventListen
 <div class="box"><p class="small">Suggested welcome post (copy and edit):</p><pre>Welcome, codebreakers.
 1. Play the game: choose any role and finish all six rounds. Then choose, in secret, loyal agent or double agent. Tell no one.
 2. Post ONLY your case card here: the card image plus the post text the game gives you.
-3. Decode classmates from the OTHER four roles: type the Signal ID from their card into the game's Decoder board, then decide whether to trust their intel reports. Your verdict stays in the game.
+3. Decode classmates from the OTHER four roles: type the Signal ID from their card into the game's Decoder board, then choose Trust or Traitor. Your verdict goes into your reply as a sealed code that only they can open.
 4. Reply to each card you decode with the reply the game writes for you. It starts with DECODED, their ID and your PROOF code. Never say whether you trust them.
 5. When all six messages are decoded, turn in your submission on edio. Never post the messages here.</pre></div>
 
@@ -219,16 +219,17 @@ document.querySelectorAll("[data-copy]").forEach(function (b) { b.addEventListen
 </ol>
 
 <h2 id="tot">TRUST OR TRAITOR</h2>
-<p>This is the assessment part of the game. Students check each other's history facts, all with choices only and no typing.</p>
+<p>Trust or Traitor is about reading each other, not quizzing. Students judge classmates, compare classmates' reports, and find out later who trusted them. Choices only, no typing.</p>
 <ol>
 <li><b>A secret choice.</b> After round 6, each student chooses in secret to be a <b>loyal agent</b> or a <b>double agent</b>. A double agent picks one of three intel reports to falsify, then chooses its lie from two false versions (no typing). The choice is hidden inside their Signal ID. Nobody else can see it.</li>
 <li><b>Classified intel reports.</b> Each student has three short intel reports from their front. On Padlet they show only as black bars; a classmate reads them by decoding the Signal ID. If the student is a double agent, one report contains the lie.</li>
-<li><b>The interrogation.</b> When a student decodes a classmate, the game asks three questions: approve or deny the reports; if deny, which report is false; then "prove it" by picking the truth from three choices. A verdict can't be changed once it is filed. Verdicts never appear on Padlet, so nobody can see who has already been caught.</li>
-<li><b>The Archive.</b> The Archive button opens declassified files, one per fact, filed in drawers by role. Key details are blacked out. Students hover over a black bar, or tap it, to see what is underneath. Reading is free, but revealing a blacked-out line while an interrogation is open marks that verdict "with research".</li>
-<li><b>Sealed results.</b> Students see whether they were right only after they have decoded all six messages. The results then appear above their submission.</li>
+<li><b>One choice: Trust or Traitor.</b> When a student decodes a classmate, they read the three reports and choose Trust or Traitor. A sealed verdict can't be changed.</li>
+<li><b>Compare with teammates.</b> A loyal agent's reports match every other agent from the same role; a double agent's planted report won't. When a student has decoded two agents from the same role, the game shows which reports differ. A difference means one of the two is lying, so they decode a third or read the Archive to decide. This sends students looking for more classmates' cards.</li>
+<li><b>The sealed verdict.</b> The reply the game writes for the Padlet carries a <b>SEAL</b> code. Classmates reading the Padlet can't tell what it means. The card's owner pastes the replies into <b>Who trusted you?</b> on their Decoder board to see how many trusted them, or how many they fooled. This gives students a reason to come back and read the replies on their card, even if they play at different times. It is optional and never affects their submission.</li>
+<li><b>The Archive.</b> Background files for every role, filed in drawers, with key details behind black bars that students hover over or tap to reveal. Reading it is free.</li>
+<li><b>Results.</b> Students see whether their own verdicts were right once they have decoded all six messages.</li>
 </ol>
-<p><b>Scoring.</b> A verdict earns 1 point if it is right. On a double agent, it earns 1 more point for naming the false report, and 1 more for picking the truth. A perfect verdict made "with research" scores 2 instead of 3. As agents, loyal students score 1 point for each classmate who approved them, and double agents score 1 point for each classmate they fooled. Teacher Check works out every score again from the Signal IDs, so students can't change their own scores.</p>
-<p><b>The Unmasking.</b> After grading, press <b>Show the Unmasking</b> in Teacher Check. It shows the class who was a double agent, the best deceiver, the best spy-catcher, and every planted lie with the truth beside it. Keep it hidden until everyone has finished.</p>
+<p><b>The Unmasking (optional).</b> In Teacher Check, under the table, press <b>Show the Unmasking</b>. It shows who was a double agent, the best deceiver, the best spy-catcher, and every planted lie with the truth beside it. Keep it hidden until everyone has finished.</p>
 
 <h2 id="grading">GRADING</h2>
 <ol>

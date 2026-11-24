@@ -302,3 +302,10 @@ svg.portrait, svg.scene { image-rendering: pixelated; shape-rendering: crispEdge
 
 /* Decoder board: clear with confirmation */
 .clrwrap { margin-top: 18px; } .clrbox { margin-top: 10px; } .clrbox h3 { margin: 0 0 6px; font-family: var(--display); font-size: 1rem; letter-spacing: .08em; color: var(--stamp); } .clrbox p { margin: 6px 0; }
+
+/* ---------- Trust or Traitor (v6): teammate comparison, one-choice verdict, Who trusted you? ---------- */
+.cmp { margin: 10px 0; padding: 8px 12px; border-left: 4px solid #4f7d96; background: rgba(79, 125, 150, .1); border-radius: 0; }
+.cmp p { margin: 4px 0; } .cmprow .diff { display: block; color: #a3312a; }
+.mlist.two { grid-template-columns: 1fr 1fr; } @media (max-width: 560px) { .mlist.two { grid-template-columns: 1fr; } }
+.seals .sealres { margin: 10px 0; padding: 8px 12px; border: 1px solid var(--line, #46555b); }
+.seals .sealres .sl { margin: 0; font-family: var(--mono); font-size: .9rem; letter-spacing: .06em; opacity: .8; } .seals .sealres p { margin: 4px 0; }

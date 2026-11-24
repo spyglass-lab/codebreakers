@@ -67,14 +67,11 @@ const Logic = (function () {
   function plantedLie(roleId, alleg, lie) { const x = D.INTEL[roleId][alleg - 1]; return { lie: x.t.replace("{X}", lieWord(x, lie)), truth: x.t.replace("{X}", x.truth), lieWord: lieWord(x, lie), truthWord: x.truth }; }
   /* "Prove it" choices for report n (0-2): truth, fake and a third, in an order fixed by the Signal ID so it doesn't change on reload. */
   function proveOpts(id, roleId, n) { const x = D.INTEL[roleId][n]; const o = [{ k: "T", v: x.truth }, { k: "F", v: x.fake }, { k: "O", v: x.third }]; let h = 7; for (const ch of id + n) h = (h * 31 + ch.charCodeAt(0)) % 9973; for (let i = 2; i > 0; i--) { const j = h % (i + 1); h = Math.floor(h / 3) + 11; [o[i], o[j]] = [o[j], o[i]]; } return o; }
-  /* Score one filed verdict against the truth. vd = { v: "A"|"D", r: 1-3, t: "T"|"F"|"O", res }. +1 right verdict; on a double agent also +1 right report and +1 right truth. A perfect 3 drops to 2 if a redaction was revealed. */
+  /* Score one filed verdict (v6): vd = { v: "A" (trust) | "D" (traitor) }. 1 point if right. Older verdicts' extra fields are ignored. */
   function verdictScore(alleg, vd) {
     if (alleg == null || !vd) return null;
-    let pts = 0; const right = (vd.v === "A") === (alleg === 0);
-    if (right) pts++;
-    if (right && alleg > 0 && vd.r === alleg) { pts++; if (vd.t === "T") pts++; }
-    if (vd.res && pts === 3) pts = 2;
-    return { pts, right, max: alleg === 0 ? 1 : 3 };
+    const right = (vd.v === "A") === (alleg === 0);
+    return { pts: right ? 1 : 0, right, max: 1 };
   }
   /* Achievement badges, earned from a finished game. Pure: depends only on the log, meters, score and hints used. */
   const BADGE_DEFS = [
@@ -101,6 +98,22 @@ const Logic = (function () {
   /* Reply proof code (v4): ties a reply on a classmate's card to the decoder's own Signal ID, so the teacher can search the Padlet for it.
      R- plus 3 characters from a hash of "<own ID>><target ID>". Not secure, just not guessable at a glance. */
   function proofCode(own, target) { const s = String(own).toUpperCase() + ">" + String(target).toUpperCase(); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 131 + s.charCodeAt(i) * (i + 3)) % 32768; return "R-" + ALPHA[h >> 10] + ALPHA[(h >> 5) & 31] + ALPHA[h & 31]; }
-  return { proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
+  /* Sealed verdict (v6): 3 characters in a reply that carry the decoder's Trust (0) or Traitor (1) verdict. Only the card's owner
+     can open it, because the game opens seals only for the player's own Signal IDs. The third character checks that the seal is
+     for this Signal ID. Not secure, just not readable at a glance. */
+  function h32(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 131 + s.charCodeAt(i) * (i + 5)) % 32749; return h; }
+  function sealCode(own, target, v) {
+    const T = String(target).toUpperCase(), s = h32(String(own).toUpperCase() + "#" + T);
+    const c1 = ALPHA[s % 32], c2 = ALPHA[(h32(T + c1) % 32 + (v ? 16 : 0) + ((s >> 5) % 16)) % 32];
+    return c1 + c2 + ALPHA[h32(T + c1 + c2 + "!") % 32];
+  }
+  /* Open a seal for one of the player's own Signal IDs: 0 trusted, 1 said traitor, null if the seal is not for this ID. */
+  function readSeal(target, code) {
+    const T = String(target).toUpperCase(), c = String(code || "").toUpperCase();
+    if (c.length !== 3 || [...c].some((x) => ALPHA.indexOf(x) < 0)) return null;
+    if (ALPHA[h32(T + c[0] + c[1] + "!") % 32] !== c[2]) return null;
+    return ((ALPHA.indexOf(c[1]) - h32(T + c[0]) % 32 + 64) % 32) >> 4;
+  }
+  return { sealCode, readSeal, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
 })();
 if (typeof module !== "undefined") module.exports = Logic;

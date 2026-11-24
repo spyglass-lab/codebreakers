@@ -382,10 +382,10 @@
     if (S.alg) { view = "end"; renderEnd(); return; }
     const role = S.role, rep = D.INTEL[role.id]; let pick = null, lie = 0, lv = null;
     root.innerHTML = topbar() + `<main class="wrap tot"><div><p class="kick">FILE CLOSING · ${esc(role.name.toUpperCase())} · ONE LAST DECISION</p><h1 data-focus tabindex="-1">Trust or traitor?</h1></div>
-      <p class="lede">Your Padlet card will carry three intel reports from your front. Classmates who decode your Signal ID must decide whether to trust them. Choose in secret: nobody finds out until your teacher unmasks the agents.</p>
+      <p class="lede">Your Padlet card will carry three intel reports from your front. Classmates who decode your Signal ID must decide whether to trust them. Choose in secret: nobody else finds out unless your teacher shows the Unmasking.</p>
       <div class="paper"><div class="mlist" role="group" aria-label="Your allegiance">
-        <button class="mitem" data-al="0" aria-pressed="false"><span class="key">L</span><span><b>Loyal agent.</b> All three of your reports are true. You score a point for every classmate who approves you.</span></button>
-        <button class="mitem" data-al="D" aria-pressed="false"><span class="key">D</span><span><b>Double agent.</b> You pick one report and the lie it will carry. You score a point for every classmate you fool.</span></button></div>
+        <button class="mitem" data-al="0" aria-pressed="false"><span class="key">L</span><span><b>Loyal agent.</b> All three of your reports are true. Later, your classmates' replies tell you how many trusted you.</span></button>
+        <button class="mitem" data-al="D" aria-pressed="false"><span class="key">D</span><span><b>Double agent.</b> You pick one report and the lie it will carry. Later, your classmates' replies tell you how many you fooled.</span></button></div>
         <div id="alrep"></div></div>
       <div class="row"><button class="btn" id="alok" disabled>Seal my file</button></div><p class="small">Once your file is sealed you can't change your mind: your Signal ID carries your choice.</p></main>`;
     const ok = $("#alok"), sync = () => { ok.disabled = !(pick === "0" || (pick === "D" && lie && lv)); };
@@ -415,7 +415,7 @@
       <p class="note"><b>Think about it.</b> ${esc(e.ask)}</p><p class="note"><b>Real people in roles like yours.</b> ${esc(role.echo)}</p>
       <section><h2>Your decisions</h2><ol class="journey">${S.log.map((x) => `<li><span class="jd">${esc(rDate(role.id, x.i))}</span><b>${esc(rTitle(role.id, x.i))}</b><span>${"ABC"[x.slot]}. ${esc(x.label)}</span><span class="jk">${esc(KIND_NOTE[x.kind])}${x.kind === realKind(role.id, x.i) ? " · ✓ same as history" : " · different from history"}</span></li>`).join("")}</ol><p class="small">You matched the real decision in ${S.log.filter((x) => x.kind === realKind(role.id, x.i)).length} of 6 rounds.</p></section>
       <section class="decoder"><h2>Decode a classmate</h2><p>Find a classmate's Padlet card from a different role. Type their Signal ID here. You will see their choices and unlock their pieces of the messages.</p>${decoderForm()}</section>
-      <section class="padlet"><h2>Post to Padlet</h2><p>Add your card image and post text to the class Padlet. Then decode classmates from other roles with the Signal IDs on their cards, and reply to their posts.</p>
+      <section class="padlet"><h2>Post to Padlet</h2><p>Add your card image and post text to the class Padlet. Then decode classmates from other roles with the Signal IDs on their cards, and reply to their posts.</p><p class="small"><b>Come back later:</b> every reply on your card has a SEAL code. Paste the replies into <b>Who trusted you?</b> on the Decoder board to see what your classmates decided.</p>
         <div class="cardwrap" id="cardsvg">${cardSVG()}</div><div class="row"><button class="btn" id="dl">Download card image</button><button class="btn ghost" id="cpimg">Copy image</button></div>
         <div class="field"><label for="qsel">Question for your classmates</label><select id="qsel">${postQs(role, e).map((q, i) => `<option value="${i}">${esc(clip(q, 100))}</option>`).join("")}</select></div>
         <div class="field"><label for="qsel2">Second question (optional)</label><select id="qsel2"><option value="-1">No second question</option>${postQs(role, e).map((q, i) => `<option value="${i}">${esc(clip(q, 100))}</option>`).join("")}</select></div>
@@ -437,7 +437,7 @@
      image can't: the Signal ID to copy, the questions, and the intel reports, which stay classified until a classmate decodes the ID. */
   function cardText(qList) {
     const L1 = "━━━━━━━━━━━━━━━━━━━━", BAR = "████████████████████";
-    return [`SIGNAL ID: ${S.ended.id}`, L1, qList.length > 1 ? "QUESTIONS FOR YOU" : "QUESTION FOR YOU", ...qList.map((q, i) => (qList.length > 1 ? `${i + 1}. ` : "") + q), L1, "INTEL REPORTS FROM MY FRONT (CLASSIFIED)", `1. ${BAR}`, `2. ${BAR.slice(3)}`, `3. ${BAR.slice(1)}`, "Decode my Signal ID to read my reports. Trust me, or deny me?", L1, "Decode my Signal ID in Codebreakers: The Hidden War, then reply with DECODED and my ID.", "#NeedToKnow"].join("\n");
+    return [`SIGNAL ID: ${S.ended.id}`, L1, qList.length > 1 ? "QUESTIONS FOR YOU" : "QUESTION FOR YOU", ...qList.map((q, i) => (qList.length > 1 ? `${i + 1}. ` : "") + q), L1, "INTEL REPORTS FROM MY FRONT (CLASSIFIED)", `1. ${BAR}`, `2. ${BAR.slice(3)}`, `3. ${BAR.slice(1)}`, "Decode my Signal ID to read my reports. Trust me, or call me a traitor?", L1, "Decode my Signal ID in Codebreakers: The Hidden War, then reply with DECODED and my ID.", "#NeedToKnow"].join("\n");
   }
   /* The name sits between the portrait (x 206) and the tilted ending stamp (from about x 405), so long names shrink to fit. */
   const nameSize = (n) => Math.max(14, Math.min(30, Math.floor(196 / (n.length * 0.62))));
@@ -494,50 +494,58 @@
     const mine = S && S.role ? S : null;
     const rows = p.picks.map((x, i) => `<li><span class="jd">R${i + 1} · ${esc(rTitle(p.role.id, i))}</span><span class="pc">“${esc(L.piece(i, p.role.id))}”</span><span>${esc(x.label)}</span></li>`).join("");
     const sameRole = mine && mine.role.id === p.role.id;
-    return `<div class="paper decoded"><p class="src">DECODED · ${esc(p.id)}</p><div class="dp"><div>${ART.portrait(p.role.id, "dc" + p.role.id)}</div><div><h3>${esc(p.role.name)}</h3><p><b>${esc(p.ending.title)}</b> · ${esc(p.rank.title)} · score ${p.fs.total}</p><p class="small">Their pieces are now on the board.</p></div></div>${sameRole ? `<p class="warn">This is the same role as yours, so it adds no new pieces. Look for a different role to fill the board.</p>` : ""}${interHTML(p)}<ol class="journey">${rows}</ol>
+    return `<div class="paper decoded"><p class="src">DECODED · ${esc(p.id)}</p><div class="dp"><div>${ART.portrait(p.role.id, "dc" + p.role.id)}</div><div><h3>${esc(p.role.name)}</h3><p><b>${esc(p.ending.title)}</b> · ${esc(p.rank.title)} · score ${p.fs.total}</p><p class="small">Their pieces are now on the board.</p></div></div>${sameRole ? `<p class="warn">This is the same role as yours, so it adds no new pieces. You can still compare their reports with yours below.</p>` : ""}${interHTML(p)}<ol class="journey">${rows}</ol>
       <div class="field"><label for="rr">Reply about round</label><select id="rr">${D.ROUNDS.map((r, i) => `<option value="${i}">${i + 1}. ${esc(rTitle(p.role.id, i))}</option>`).join("")}</select></div>
       <div class="field"><label for="rq">Question for them (pick one)</label><select id="rq"></select></div>
       <textarea id="rtext" rows="6" readonly aria-label="Reply text"></textarea><div class="row"><button class="mini" id="cprep">Copy reply</button></div><p class="small cmsg" role="status"></p><p class="small" id="rproof"></p><p class="small">Paste this as a reply on their card post on Padlet.</p></div>`;
   }
 
-  function showDecoded(p) { $("#dres").innerHTML = decodedCard(p); bindReply(p); bindInter(p); }
+  let repaintReply = null;
+  function showDecoded(p) { $("#dres").innerHTML = decodedCard(p); repaintReply = bindReply(p); bindInter(p); }
 
   /* ---------- Trust or Traitor: the interrogation (choices only; results sealed until all six messages are decoded) ---------- */
   /* The player's own Signal ID for reply proof codes: the role they are playing now, else the first finished one. */
   const myId = () => { const b = board(), m = b.mine || {}; return (b.own && m[b.own.role]) || Object.values(m)[0] || null; };
   const isMine = (id) => Object.values(board().mine || {}).indexOf(id) >= 0;
   const unsealed = () => fullCount(board()) >= 6;
-  const vdText = (p, vd) => vd.v === "A" ? "APPROVED: you trusted all three reports." : `DENIED: you said report ${vd.r} was false and the truth is “${D.INTEL[p.role.id][vd.r - 1][{ T: "truth", F: "fake", O: "third" }[vd.t]]}”.`;
+  const vdText = (p, vd) => vd.v === "A" ? "You said TRUST." : "You said TRAITOR.";
   function vdResult(p, vd) {
     const sc = L.verdictScore(p.alleg, vd), x = p.alleg ? L.plantedLie(p.role.id, p.alleg, p.lie) : null;
-    return `<p class="vres ${sc.right ? "good" : "bad"}"><b>${p.alleg ? "DOUBLE AGENT." : "LOYAL AGENT."}</b> ${p.alleg ? `Report ${p.alleg} was planted: it said “${esc(x.lieWord)}”, but the truth is “${esc(x.truthWord)}”.` : "All three reports were true."} You scored ${sc.pts} of ${sc.max}${vd.res ? " (with research)" : ""}.</p>`;
+    return `<p class="vres ${sc.right ? "good" : "bad"}"><b>${p.alleg ? "DOUBLE AGENT." : "LOYAL AGENT."}</b> ${p.alleg ? `Report ${p.alleg} was planted: it said “${esc(x.lieWord)}”, but the truth is “${esc(x.truthWord)}”.` : "All three reports were true."} ${sc.right ? "You were right." : "You were fooled."}</p>`;
+  }
+  /* Same-role comparison (v6): the other agents of this role that the player knows (decoded, or their own card). A loyal agent's
+     reports match every other loyal teammate; a double agent's planted report won't. */
+  function teammates(p) {
+    const b = board(), seen = {}, out = [];
+    Object.values(b.mine || {}).concat(b.sig).forEach((id) => { const q = L.parseSignal(id); if (!q || q.id === p.id || q.role.id !== p.role.id || q.alleg == null || seen[q.id]) return; seen[q.id] = 1; out.push(q); });
+    return out;
+  }
+  function compareHTML(p) {
+    const team = teammates(p), mine = L.intelFor(p.role.id, p.alleg, p.lie);
+    if (!team.length) return `<div class="cmp"><p><b>Not sure?</b> Find another ${esc(p.role.name)} card on the Padlet and decode it too. A loyal agent's reports match their teammates'. When you come back to this Signal ID (from <b>Decoded so far</b> on the Decoder board), the game compares them for you.</p></div>`;
+    return `<div class="cmp"><p><b>Compare with ${team.length === 1 ? "a teammate" : "teammates"}.</b> Other ${esc(p.role.name)} agents you know:</p>${team.map((q) => { const t = L.intelFor(q.role.id, q.alleg, q.lie), diff = [0, 1, 2].filter((i) => t[i].text !== mine[i].text);
+      return `<p class="cmprow"><b class="mono">${esc(q.id)}</b>${isMine(q.id) ? " (your own card)" : ""}: ${diff.length ? diff.map((i) => `<span class="diff">Report ${i + 1} is different. Theirs says: “${esc(t[i].text)}”</span>`).join(" ") : "all three reports match."}</p>`; }).join("")}<p class="small">A difference means one of the two is lying, but not which one. Compare with another teammate, or read the Archive.</p></div>`;
   }
   function interHTML(p) {
     if (p.alleg == null) return `<p class="small">This Signal ID is from an older version of the game, so there are no intel reports to check.</p>`;
     if (isMine(p.id)) return `<p class="small">This is your own Signal ID, so there is nothing to interrogate.</p>`;
     const reps = L.intelFor(p.role.id, p.alleg, p.lie).map((x, i) => `<li><b>Report ${i + 1}.</b> ${esc(x.text)}</li>`).join("");
-    return `<section class="interro"><p class="src">INTERROGATION · TRUST OR TRAITOR</p><p>${esc(p.role.name)}'s card carries these intel reports. Is this agent loyal, or a double agent who planted one lie?</p><ol class="intel">${reps}</ol><div id="istep"></div>
-      <div class="row"><button class="mini" id="iarch">Check the Archive</button></div><p class="small">Reading the Archive is free. Revealing a blacked-out line while this interrogation is open marks your verdict “with research”: a perfect verdict then scores 2 points instead of 3.</p></section>`;
+    return `<section class="interro"><p class="src">TRUST OR TRAITOR</p><p>${esc(p.role.name)}'s card carries these intel reports. Is this agent loyal, or a double agent who planted one lie?</p><ol class="intel">${reps}</ol>${compareHTML(p)}<div id="istep"></div>
+      <div class="row"><button class="mini" id="iarch">Read the Archive</button></div><p class="small">The Archive has background files on every role. Your verdict goes into your reply as a sealed code, so only this agent can open it.</p></section>`;
   }
   function bindInter(p) {
     const box = $("#istep"); if (!box) return;
     const ab = $("#iarch"); if (ab) ab.addEventListener("click", () => openArchive(p.role.id));
     const b0 = board(), filed = (b0.verdicts || {})[p.id];
-    if (filed) { curInt = null; box.innerHTML = `<p class="vfiled"><b>Verdict filed.</b> ${esc(vdText(p, filed))}</p>${unsealed() ? vdResult(p, filed) : `<p class="small">Results are sealed until you have decoded all six messages.</p>`}`; return; }
+    if (filed) { curInt = null; box.innerHTML = `<p class="vfiled"><b>Verdict filed.</b> ${esc(vdText(p, filed))} Your sealed verdict is in the reply below.</p>${unsealed() ? vdResult(p, filed) : `<p class="small">You find out if you were right once you have decoded all six messages.</p>`}`; return; }
     curInt = p.id; const vd = {};
     const opt = (attr, val, key, txt, on) => `<button class="mitem" ${attr}="${val}" aria-pressed="${!!on}"><span class="key">${key}</span><span>${txt}</span></button>`;
     const paint = () => {
-      const res = !!((board().resd || {})[p.id]);
-      let h = `<h3>1. Your verdict</h3><div class="mlist" role="group" aria-label="Verdict">${opt("data-v", "A", "A", "<b>APPROVE.</b> I trust all three reports.", vd.v === "A")}${opt("data-v", "D", "D", "<b>DENY.</b> One of these reports is a lie.", vd.v === "D")}</div>`;
-      if (vd.v === "D") h += `<h3>2. Which report is false?</h3><div class="mlist" role="group" aria-label="False report">${[1, 2, 3].map((n) => opt("data-r", n, n, "Report " + n, vd.r === n)).join("")}</div>`;
-      if (vd.v === "D" && vd.r) h += `<h3>3. Prove it: what is the truth?</h3><div class="mlist" role="group" aria-label="The truth">${L.proveOpts(p.id, p.role.id, vd.r - 1).map((o, i) => opt("data-t", o.k, "ABC"[i], esc(D.INTEL[p.role.id][vd.r - 1].t.replace("{X}", o.v)), vd.t === o.k)).join("")}</div>`;
-      const ready = vd.v === "A" || (vd.v === "D" && vd.r && vd.t);
-      h += `<div class="row"><button class="btn" id="ifile"${ready ? "" : " disabled"}>File verdict</button></div><p class="small">${res ? "<b>Research used</b> for this verdict. " : ""}A filed verdict can't be changed.</p>`;
+      let h = `<h3>Do you trust this agent?</h3><div class="mlist two" role="group" aria-label="Verdict">${opt("data-v", "A", "T", "<b>TRUST.</b> All three reports are true.", vd.v === "A")}${opt("data-v", "D", "X", "<b>TRAITOR.</b> One report is a lie.", vd.v === "D")}</div>`;
+      h += `<div class="row"><button class="btn" id="ifile"${vd.v ? "" : " disabled"}>Seal my verdict</button></div><p class="small">A sealed verdict can't be changed.</p>`;
       box.innerHTML = h;
-      $$("[data-v]", box).forEach((x) => x.addEventListener("click", () => { vd.v = x.dataset.v; if (vd.v === "A") { delete vd.r; delete vd.t; } paint(); }));
-      $$("[data-r]", box).forEach((x) => x.addEventListener("click", () => { vd.r = +x.dataset.r; delete vd.t; paint(); }));
-      $$("[data-t]", box).forEach((x) => x.addEventListener("click", () => { vd.t = x.dataset.t; paint(); }));
-      $("#ifile").addEventListener("click", () => { const b = board(); b.verdicts = b.verdicts || {}; if (b.verdicts[p.id]) return; b.verdicts[p.id] = Object.assign({}, vd, { res: !!((b.resd || {})[p.id]) }); store.set("cb_board", b); bindInter(p); });
+      $$("[data-v]", box).forEach((x) => x.addEventListener("click", () => { vd.v = x.dataset.v; paint(); }));
+      $("#ifile").addEventListener("click", () => { const b = board(); b.verdicts = b.verdicts || {}; if (b.verdicts[p.id]) return; b.verdicts[p.id] = { v: vd.v }; store.set("cb_board", b); bindInter(p); if (repaintReply) repaintReply(); });
     };
     paint();
   }
@@ -546,7 +554,6 @@
   let arch = { d: 0, f: 0 }, archKey = null;
   const redact = (t) => esc(t).replace(/\[\[(.+?)\]\]/g, '<span class="red" tabindex="0" role="button" aria-label="Blacked-out text. Press to reveal.">$1</span>');
   function closeArchive() { const a = $(".archive"); if (a) { sayStop(); a.remove(); document.body.style.overflow = ""; } if (archKey) { document.removeEventListener("keydown", archKey); archKey = null; } }
-  function noteResearch() { if (!curInt) return; const b = board(); if ((b.verdicts || {})[curInt]) return; b.resd = b.resd || {}; if (b.resd[curInt]) return; b.resd[curInt] = true; store.set("cb_board", b); const n = $(".arch-int"); if (n) n.innerHTML = `<b>Research used</b> for your verdict on ${esc(curInt)}.`; }
   function openArchive(drawer) {
     closeArchive(); const back = document.activeElement;
     if (drawer) { const i = D.ARCHIVE.findIndex((x) => x.id === drawer); if (i >= 0) arch = { d: i, f: 0 }; }
@@ -556,9 +563,8 @@
     archKey = (e) => { if (e.key === "Escape") close(); }; document.addEventListener("keydown", archKey);
     const paint = (focusSel) => {
       sayStop();
-      const d = D.ARCHIVE[arch.d], f = d.files[arch.f], res = curInt && ((board().resd || {})[curInt]);
+      const d = D.ARCHIVE[arch.d], f = d.files[arch.f];
       el.innerHTML = `<div class="arch-in" style="--dc:${d.color}"><div class="arch-top"><h2>The Archive <small>Declassified files</small></h2><span class="row" style="margin:0">${sayBtn()}<button class="mini" id="archx">Close</button></span></div>
-        ${curInt ? `<p class="arch-int">${res ? `<b>Research used</b> for your verdict on ${esc(curInt)}.` : `Interrogation open for ${esc(curInt)}. Revealing a blacked-out line marks that verdict “with research”.`}</p>` : ""}
         <nav class="drawers" aria-label="Drawers">${D.ARCHIVE.map((x, i) => `<button class="drawer${i === arch.d ? " on" : ""}" data-d="${i}" style="--dc:${x.color}" aria-pressed="${i === arch.d}">${esc(x.name)}</button>`).join("")}</nav>
         <div class="folder"><div class="ftabs" role="tablist" aria-label="${esc(d.name)} files">${d.files.map((x, i) => `<button class="ftab${i === arch.f ? " on" : ""}" role="tab" aria-selected="${i === arch.f}" data-f="${i}">${esc(x.tab)}</button>`).join("")}</div>
         <article class="dossier" role="tabpanel"><header class="dhead"><span>${esc(f.org)}</span><s>${esc(f.cls)}</s></header><p class="arstamp" aria-label="Declassified">DECLASSIFIED</p><h3>${esc(f.tab)}</h3><p class="dtext">${redact(f.text)}</p>
@@ -568,7 +574,7 @@
       $$("[data-d]", el).forEach((b) => b.addEventListener("click", () => { arch = { d: +b.dataset.d, f: 0 }; paint(`[data-d="${b.dataset.d}"]`); }));
       $$("[data-f]", el).forEach((b) => b.addEventListener("click", () => { arch.f = +b.dataset.f; paint(`[data-f="${b.dataset.f}"]`); }));
       $$(".red", el).forEach((s) => {
-        let t = null; const show = () => { if (!s.classList.contains("shown")) { s.classList.add("shown"); s.removeAttribute("aria-label"); s.removeAttribute("role"); } noteResearch(); };
+        let t = null; const show = () => { if (!s.classList.contains("shown")) { s.classList.add("shown"); s.removeAttribute("aria-label"); s.removeAttribute("role"); } };
         s.addEventListener("mouseenter", () => { t = setTimeout(show, 250); }); s.addEventListener("mouseleave", () => { clearTimeout(t); });
         s.addEventListener("focus", show); s.addEventListener("click", show);
       });
@@ -588,11 +594,14 @@
       if (S && S.log[r]) mine = `I chose: ${S.log[r].label}\n` + (S.log[r].label === p.picks[r].label ? "We made the same call." : "We made different calls.");
       const L1 = "━━━━━━━━━━━━━━━━━━━━";
       const me = myId(), proof = me && !isMine(p.id) ? L.proofCode(me, p.id) : null;
-      const pn = $("#rproof"); if (pn) pn.innerHTML = proof ? `Your proof code for this reply is <b>${proof}</b>. It is already in the reply, and it goes in your submission, so your teacher can find your reply on the Padlet.` : `<b>No proof code yet.</b> Finish your own game first, then come back and copy this reply. Replies without a proof code may not count.`;
-      ta.value = [`DECODED ${p.id} (${p.role.name})`, ...(proof ? [`PROOF ${proof}`] : []), L1, `ROUND ${r + 1}: ${rTitle(p.role.id, r)}`, L1, `You chose: ${p.picks[r].label}`, ...(mine ? ["", mine] : []), "", L1, "QUESTION FOR YOU", L1, qs[+rq.value || 0]].join("\n");
+      const vd = (board().verdicts || {})[p.id], seal = proof && p.alleg != null && vd ? L.sealCode(me, p.id, vd.v === "A" ? 0 : 1) : null;
+      const pn = $("#rproof"); if (pn) pn.innerHTML = (proof ? `Your proof code for this reply is <b>${proof}</b>. It is already in the reply, and it goes in your submission, so your teacher can find your reply on the Padlet.` : `<b>No proof code yet.</b> Finish your own game first, then come back and copy this reply. Replies without a proof code may not count.`)
+        + (proof && p.alleg != null ? (seal ? ` <b>SEAL ${seal}</b> is your sealed verdict. Only this agent can open it.` : ` <b>Choose Trust or Traitor above first</b>, so your sealed verdict goes into the reply.`) : "");
+      ta.value = [`DECODED ${p.id} (${p.role.name})`, ...(proof ? [`PROOF ${proof}`] : []), ...(seal ? [`SEAL ${seal}`] : []), L1, `ROUND ${r + 1}: ${rTitle(p.role.id, r)}`, L1, `You chose: ${p.picks[r].label}`, ...(mine ? ["", mine] : []), "", L1, "QUESTION FOR YOU", L1, qs[+rq.value || 0]].join("\n");
     };
     rrs.addEventListener("change", fill); rq.addEventListener("change", paint); fill();
     $("#cprep").addEventListener("click", (e) => copyText(ta.value, e.currentTarget, "Copied. Paste it as a reply on their Padlet post."));
+    return paint;
   }
 
   /* ---------- completion post ---------- */
@@ -603,16 +612,16 @@
   }
   /* Reply proof codes in the submission: "Reply codes: <ID> R-XXX; …", one per decoded classmate. Teacher Check recomputes them. */
   function replyLine(parsed) { const me = myId(), list = parsed.filter((p) => !isMine(p.id)); if (!me || !list.length) return "Reply codes: none\n"; return `Reply codes: ${list.map((p) => p.id + " " + L.proofCode(me, p.id)).join("; ")}\n`; }
-  /* Verdicts in the submission: "<ID> A" (approved) or "<ID> D2T" (denied report 2, picked the truth; F = picked the fake, O = the third choice); "*" = with research. Teacher Check rescores them from the IDs. */
+  /* Verdicts in the submission (v6): "<ID> A" (trust) or "<ID> D" (traitor). Teacher Check rescores them from the IDs. */
   function verdictList(b) { return Object.keys(b.verdicts || {}).map((id) => ({ id, vd: b.verdicts[id], p: L.parseSignal(id) })).filter((x) => x.p && x.p.alleg != null); }
   function verdictLines(b) {
     const v = verdictList(b); if (!v.length) return "Verdicts: none\n";
-    let pts = 0, max = 0; v.forEach((x) => { const s = L.verdictScore(x.p.alleg, x.vd); pts += s.pts; max += s.max; });
-    return `Verdicts: ${v.map((x) => x.id + " " + (x.vd.v === "A" ? "A" : "D" + x.vd.r + x.vd.t) + (x.vd.res ? "*" : "")).join("; ")}\nInterrogation score: ${pts} of ${max}\n`;
+    const right = v.filter((x) => L.verdictScore(x.p.alleg, x.vd).right).length;
+    return `Verdicts: ${v.map((x) => x.id + " " + (x.vd.v === "A" ? "A" : "D")).join("; ")}\nVerdicts right: ${right} of ${v.length}\n`;
   }
   function verdictPanel(b, open) {
     const v = verdictList(b); if (!v.length) return "";
-    if (!open) return `<p class="small">Verdicts filed: ${v.length}. Results are sealed until you have decoded all six messages.</p>`;
+    if (!open) return `<p class="small">Verdicts sealed: ${v.length}. You find out if you were right once you have decoded all six messages.</p>`;
     return `<div class="paper vlist"><p class="src">UNSEALED · YOUR VERDICTS</p>${v.map((x) => `<div class="vrow"><p><b>${esc(x.id)}</b> · ${esc(x.p.role.name)}<br>${esc(vdText(x.p, x.vd))}</p>${vdResult(x.p, x.vd)}</div>`).join("")}</div>`;
   }
   function completion(b, parsed, full) {
@@ -622,6 +631,31 @@
       <div class="field"><label for="crefl">Your reflection (one or two sentences)</label><textarea id="crefl" rows="3" placeholder="Which message surprised you most, and why?"></textarea></div>
       <div class="field"><label for="cptext2">Your submission</label><textarea id="cptext2" rows="14" readonly></textarea></div>
       <div class="row"><button class="btn" id="cppost">Copy submission</button></div><p class="small cmsg" role="status"></p></section>`;
+  }
+
+  /* ---------- Who trusted you? (v6): open the SEAL codes from replies on the player's own card ---------- */
+  const ownAgents = (b) => Object.values(b.mine || {}).map(L.parseSignal).filter((q) => q && q.alleg != null);
+  function sealTally(b) {
+    const got = b.seals || {};
+    return ownAgents(b).map((q) => { const v = (got[q.id] || []).map((c) => L.readSeal(q.id, c)).filter((x) => x != null); return { q, n: v.length, trust: v.filter((x) => x === 0).length }; });
+  }
+  function sealsHTML(b) {
+    const t = sealTally(b); if (!t.length) return "";
+    const res = t.map(({ q, n, trust }) => `<div class="sealres"><p class="sl">${esc(q.id)} · ${esc(q.role.name)} · ${q.alleg ? "double agent" : "loyal agent"}</p>${!n ? "<p>No seals opened yet.</p>" : q.alleg ? `<p><b>You fooled ${trust} of ${n}.</b> ${n - trust} caught you.</p>` : `<p><b>${trust} trusted you.</b> ${n - trust} suspected you.</p>`}</div>`).join("");
+    return `<section class="panel seals"><h2>Who trusted you?</h2><p>Every reply on your Padlet card has a <b>SEAL</b> code with that classmate's secret verdict. Copy the replies (or just the SEAL codes) and paste them here.</p>
+      <div class="field"><label for="sealin">Replies from your card</label><textarea id="sealin" rows="4" placeholder="SEAL K7Q"></textarea></div><div class="row"><button class="btn" id="sealgo">Open the seals</button></div><p class="small cmsg" id="sealmsg" role="status"></p>${res}<p class="small">This is just for you. It doesn't change your submission.</p></section>`;
+  }
+  function bindSeals() {
+    const go = $("#sealgo"); if (!go) return;
+    go.addEventListener("click", () => {
+      const raw = $("#sealin").value.toUpperCase(), tagged = [...raw.matchAll(/SEAL\s*:?\s*([A-Z0-9]{3})\b/g)].map((m) => m[1]);
+      const codes = tagged.length ? tagged : (raw.match(/\b[A-Z0-9]{3}\b/g) || []);
+      const b = board(), own = ownAgents(b); b.seals = b.seals || {}; let added = 0, dup = 0, bad = 0;
+      codes.forEach((c) => { const q = own.find((x) => L.readSeal(x.id, c) != null); if (!q) { bad++; return; } const l = b.seals[q.id] = b.seals[q.id] || []; if (l.indexOf(c) >= 0) dup++; else { l.push(c); added++; } });
+      store.set("cb_board", b); renderBoard(); bindGo();
+      const m = $("#sealmsg"); if (m) m.textContent = !codes.length ? "No SEAL codes found. Copy the whole reply, including its SEAL line." : `Opened ${added} new seal${added === 1 ? "" : "s"}.` + (dup ? ` ${dup} already opened.` : "") + (bad ? ` ${bad} ${bad === 1 ? "is" : "are"} not for your card.` : "");
+      const s = $(".seals"); if (s) s.scrollIntoView({ block: "nearest" });
+    });
   }
 
   /* ---------- board ---------- */
@@ -644,6 +678,7 @@
       <p class="lede">Each round hides a five-part message. You hold one part of each. Decode classmates' Signal IDs from other roles to fill the rest. ${full} of 6 messages complete.</p>
       <section class="decoder"><h2>Decode a Signal ID</h2>${decoderForm()}</section>
       ${parsed.length ? `<section><h2>Decoded so far</h2><ul class="chiplist">${parsed.map((p) => `<li><button class="chipb" data-sig="${p.id}">${esc(p.id)} · ${esc(p.role.short)}</button></li>`).join("")}</ul></section>` : ""}
+      ${sealsHTML(b)}
       ${completion(b, parsed, full)}
       ${rows}<div class="clrwrap"><button class="mini" id="clr" aria-expanded="false" aria-controls="clrbox">Clear the decoder board</button>
       <div class="clrbox panel" id="clrbox" role="group" aria-labelledby="clrh" hidden><h3 id="clrh">Clear the decoder board?</h3>
@@ -652,7 +687,7 @@
         <p class="small"><b>Clear classmates' Signal IDs</b> removes everyone you decoded, so their pieces disappear. Pieces from roles you played yourself stay.<br><b>Also forget other roles I played</b> clears those too, except the game you are playing now.</p></div>
       <p class="small cmsg" id="clrmsg" role="status"></p></div></main>`;
     $("#bk").addEventListener("click", () => go(prevView === "board" ? "title" : prevView));
-    bindDecoder();
+    bindDecoder(); bindSeals();
     $$("[data-sig]").forEach((c) => c.addEventListener("click", () => { const p = L.parseSignal(c.dataset.sig); showDecoded(p); $("#dres").scrollIntoView({ block: "nearest" }); }));
     const cp = $("#cppost"); if (cp) { const ta = $("#cptext2"), refl = $("#crefl"), cnm = $("#cnm"), upd = () => { nameNow = cnm.value.trim(); ta.value = completionText(b, parsed, refl.value.trim()); }; refl.addEventListener("input", upd); cnm.addEventListener("input", upd); upd(); cp.addEventListener("click", (e) => copyText(ta.value, e.currentTarget, "Copied. Turn it in on edio. Do not post it on Padlet.")); }
     /* Clearing asks first. Option 1 forgets decoded classmates; option 2 also forgets other roles this student played
