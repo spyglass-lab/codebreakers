@@ -2784,16 +2784,16 @@ const RECMAPS = (function () {
   }
   function compareHTML(p) {
     const team = teammates(p), mine = L.intelFor(p.role.id, p.alleg, p.lie);
-    if (!team.length) return `<div class="cmp"><p><b>Not sure?</b> Find another ${esc(p.role.name)} card on the Padlet and decode it too. A loyal agent's reports match their teammates'. When you come back to this Signal ID (from <b>Decoded so far</b> on the Decoder board), the game compares them for you.</p></div>`;
-    return `<div class="cmp"><p><b>Compare with ${team.length === 1 ? "a teammate" : "teammates"}.</b> Other ${esc(p.role.name)} agents you know:</p>${team.map((q) => { const t = L.intelFor(q.role.id, q.alleg, q.lie), diff = [0, 1, 2].filter((i) => t[i].text !== mine[i].text);
-      return `<p class="cmprow"><b class="mono">${esc(q.id)}</b>${isMine(q.id) ? " (your own card)" : ""}: ${diff.length ? diff.map((i) => `<span class="diff">Report ${i + 1} is different. Theirs says: “${esc(t[i].text)}”</span>`).join(" ") : "all three reports match."}</p>`; }).join("")}<p class="small">A difference means one of the two is lying, but not which one. Compare with another teammate, or read the Archive.</p></div>`;
+    if (!team.length) return "";   // a bonus only: never ask students to decode extra cards
+    return `<div class="cmp"><p><b>Bonus clue.</b> You have also decoded ${team.length === 1 ? "another" : "other"} ${esc(p.role.name)} agent${team.length === 1 ? "" : "s"}:</p>${team.map((q) => { const t = L.intelFor(q.role.id, q.alleg, q.lie), diff = [0, 1, 2].filter((i) => t[i].text !== mine[i].text);
+      return `<p class="cmprow"><b class="mono">${esc(q.id)}</b>${isMine(q.id) ? " (your own card)" : ""}: ${diff.length ? diff.map((i) => `<span class="diff">Report ${i + 1} is different. Theirs says: “${esc(t[i].text)}”</span>`).join(" ") : "all three reports match."}</p>`; }).join("")}<p class="small">A difference means one of the two is lying, but not which one.</p></div>`;
   }
   function interHTML(p) {
     if (p.alleg == null) return `<p class="small">This Signal ID is from an older version of the game, so there are no intel reports to check.</p>`;
     if (isMine(p.id)) return `<p class="small">This is your own Signal ID, so there is nothing to interrogate.</p>`;
     const reps = L.intelFor(p.role.id, p.alleg, p.lie).map((x, i) => `<li><b>Report ${i + 1}.</b> ${esc(x.text)}</li>`).join("");
-    return `<section class="interro"><p class="src">TRUST OR TRAITOR</p><p>${esc(p.role.name)}'s card carries these intel reports. Is this agent loyal, or a double agent who planted one lie?</p><ol class="intel">${reps}</ol>${compareHTML(p)}<div id="istep"></div>
-      <div class="row"><button class="mini" id="iarch">Read the Archive</button></div><p class="small">The Archive has background files on every role. Your verdict goes into your reply as a sealed code, so only this agent can open it.</p></section>`;
+    return `<section class="interro"><p class="src">TRUST OR TRAITOR</p><p>${esc(p.role.name)}'s card carries these intel reports. Is this agent loyal, or a double agent who planted one lie?</p><ol class="intel">${reps}</ol><p class="small"><b>Go with your gut.</b> Real intelligence officers often had no way to check. Does this sound right? Do you trust this agent?</p>${compareHTML(p)}<div id="istep"></div>
+      <p class="small">Your verdict goes into your reply as a sealed code, so only this agent can open it. Want background? <button class="mini" id="iarch">Read the Archive</button> (optional)</p></section>`;
   }
   function bindInter(p) {
     const box = $("#istep"); if (!box) return;
