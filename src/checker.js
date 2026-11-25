@@ -39,10 +39,13 @@
     const listed = (sub.replies || []).filter((x) => own.some((o) => L.proofCode(o, x.id) === x.code)), missing = listed.filter((x) => !found[x.id]).length;
     return { found: Object.keys(found).length, missing };
   }
+  /* A clear result box, so choosing the file visibly does something even before any submissions are checked. */
+  function padStatus(kind, html) { const m = $("#padmsg"); if (!m) return; m.className = "padres " + kind; m.innerHTML = html; }
   function setPadlet(text, label) {
-    padPairs = scanPadlet(text); const n = Object.keys(padPairs).length, m = $("#padmsg");
-    if (m) m.textContent = n ? `Read ${label}: ${n} game repl${n === 1 ? "y" : "ies"} found on the Padlet.` : `Read ${label}, but found no game replies in it. Use Padlet's Excel export (it includes comments), or check that students pasted the replies the game wrote.`;
-    if ($("#out").innerHTML) run();
+    padPairs = scanPadlet(text); const n = Object.keys(padPairs).length, subs = $("#subs").value.trim();
+    if (!n) { padPairs = null; padStatus("bad", `<b>No game replies found in ${esc(label)}.</b> The file had ${Math.round(String(text).length / 1000)}k characters of text, but no reply starting with DECODED and a PROOF code. Try Padlet's other export format (Excel or CSV), or open a card on the Padlet, select its comments, copy them and paste them under <i>Or paste text copied from the Padlet</i>.`); return; }
+    padStatus("good", `<b>✓ Found ${n} game repl${n === 1 ? "y" : "ies"} on the Padlet</b> in ${esc(label)}.<br>${subs ? "The <b>Replies found on Padlet</b> column in the table below now uses this file." : "Next: paste the students' submissions in the box above and press <b>Check</b>. The <b>Replies found on Padlet</b> column will show each student's replies."}`);
+    if (subs) { run(); const t = $("#out table.simple"); if (t) t.scrollIntoView({ block: "start", behavior: "smooth" }); }
   }
 
   /* Read one submission's text into its parts. */
@@ -182,12 +185,16 @@
 
   $("#go").addEventListener("click", run);
   $("#pfile").addEventListener("change", async (e) => {
-    const f = e.target.files && e.target.files[0]; if (!f) return; const m = $("#padmsg");
-    try { const buf = await f.arrayBuffer(), zip = new Uint8Array(buf, 0, 2); setPadlet(zip[0] === 0x50 && zip[1] === 0x4b ? await unzipText(buf) : new TextDecoder().decode(buf), f.name); }
-    catch (err) { m.textContent = "Could not read that file. Try Padlet's Excel or CSV export, or paste the Padlet text instead."; }
+    const f = e.target.files && e.target.files[0]; if (!f) return; padStatus("wait", `Reading ${esc(f.name)}…`);
+    try {
+      const buf = await f.arrayBuffer(), zip = new Uint8Array(buf, 0, Math.min(2, buf.byteLength)), isZip = zip[0] === 0x50 && zip[1] === 0x4b;
+      const text = isZip ? await Promise.race([unzipText(buf), new Promise((res, rej) => setTimeout(() => rej(new Error("timeout")), 15000))]) : new TextDecoder().decode(buf);
+      setPadlet(text, f.name);
+    } catch (err) { padStatus("bad", `<b>Could not read ${esc(f.name)}.</b> Try Padlet's CSV export instead, or paste text copied from the Padlet below. (${esc(err && err.message || "error")})`); }
+    e.target.value = "";
   });
   $("#padgo").addEventListener("click", () => { const t = $("#ptxt").value; if (t.trim()) setPadlet(t, "the pasted text"); });
-  $("#padclear").addEventListener("click", () => { padPairs = null; $("#pfile").value = ""; $("#ptxt").value = ""; $("#padmsg").textContent = ""; if ($("#out").innerHTML) run(); });
+  $("#padclear").addEventListener("click", () => { padPairs = null; $("#pfile").value = ""; $("#ptxt").value = ""; const m = $("#padmsg"); m.className = "small"; m.textContent = ""; if ($("#out").innerHTML) run(); });
   $("#clear").addEventListener("click", () => { $("#subs").value = ""; $("#out").innerHTML = ""; });
   $("#onego").addEventListener("click", look); $("#one").addEventListener("keydown", (e) => { if (e.key === "Enter") look(); });
 })();
