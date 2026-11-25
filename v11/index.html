@@ -2808,7 +2808,6 @@ const RECMAPS = (function () {
     return `<div class="paper decoded"><p class="src">DECODED · ${esc(p.id)}</p><div class="dp"><div>${ART.portrait(p.role.id, "dc" + p.role.id)}</div><div><h3>${esc(p.role.name)}</h3><p><b>${esc(p.ending.title)}</b> · ${esc(p.rank.title)} · score ${p.fs.total}</p><p class="small">Their pieces are now on the board.</p></div></div>${sameRole ? `<p class="warn">This is the same role as yours, so it adds no new pieces. You can still compare their reports with yours below.</p>` : ""}${interHTML(p)}<section class="replybox" id="replybox"><h3>Your reply for the Padlet</h3><div class="row"><button class="btn" id="cprep">Copy reply</button></div><p class="small cmsg" id="rmsg" role="status"></p>
       <details class="rmore" open><summary>See or change your reply</summary>
       <div class="field"><label for="rr">Reply about round</label><select id="rr">${D.ROUNDS.map((r, i) => `<option value="${i}">${i + 1}. ${esc(rTitle(p.role.id, i))}</option>`).join("")}</select></div>
-      <div class="field"><label for="rq">Question for them</label><select id="rq"></select></div>
       <textarea id="rtext" rows="9" readonly aria-label="Reply text"></textarea><p class="small" id="rproof"></p></details></section>
       <h3 class="theirs">Their choices</h3><ol class="journey">${rows}</ol></div>`;
   }
@@ -2951,11 +2950,10 @@ const RECMAPS = (function () {
   }
   const REPLY_QS = ["What did you think would happen when you made that choice?", "Which of Secrecy, Impact or Trust were you protecting?", "Would you make the same choice again? Why or why not?", "What did your role know that other roles did not?"];
   function bindReply(p) {
-    const rrs = $("#rr"), rq = $("#rq"), ta = $("#rtext"); if (!rrs) return;
+    const rrs = $("#rr"), ta = $("#rtext"); if (!rrs) return;
     rrs.value = String(autoRound(p));   // v7: a round where you chose differently, so the reply starts a real conversation
-    const fill = () => { const r = +rrs.value, prev = rq.value; rq.innerHTML = [D.ROUNDS[r].ask].concat(REPLY_QS).map((q, i) => `<option value="${i}">${esc(clip(q, 90))}</option>`).join(""); if (prev) rq.value = prev; paint(); };
     const paint = () => {
-      const r = +rrs.value, qs = [D.ROUNDS[r].ask].concat(REPLY_QS), mineRole = (S && S.role) || (board().own && L.roleById(board().own.role)), mp = myPicks();
+      const r = +rrs.value, mineRole = (S && S.role) || (board().own && L.roleById(board().own.role)), mp = myPicks();
       let mine = mineRole ? `I played ${mineRole.name}.` : "";
       if (mp[r]) mine = `I chose: ${mp[r]}\n` + (mp[r] === p.picks[r].label ? "We made the same call." : "We made different calls.");
       const L1 = "━━━━━━━━━━━━━━━━━━━━";
@@ -2963,9 +2961,9 @@ const RECMAPS = (function () {
       const vd = (board().verdicts || {})[p.id], seal = proof && p.alleg != null && vd ? L.sealCheck(me, p.id, vd.v === "A" ? 0 : 1, vd.c) : null;
       const pn = $("#rproof"); if (pn) pn.innerHTML = (proof ? `Your proof code for this reply is <b>${proof}</b>. It is already in the reply, and it goes in your submission, so your teacher can find your reply on the Padlet.` : `<b>No proof code yet.</b> Finish your own game first, then come back and copy this reply. Replies without a proof code may not count.`)
         + (proof && p.alleg != null ? (seal ? ` <b>SEAL ${seal}</b> is your sealed verdict. Only this agent can open it.` : ` <b>Choose Trust or Traitor above first</b>, so your sealed verdict goes into the reply.`) : "");
-      ta.value = [`DECODED ${p.id} (${p.role.name})`, ...(proof ? [`PROOF ${proof}`] : []), ...(seal ? [`SEAL ${seal}`] : []), L1, `ROUND ${r + 1}: ${rTitle(p.role.id, r)}`, L1, `You chose: ${p.picks[r].label}`, ...(mine ? ["", mine] : []), "", L1, "QUESTION FOR YOU", L1, qs[+rq.value || 0]].join("\n");
+      ta.value = [`DECODED ${p.id} (${p.role.name})`, ...(proof ? [`PROOF ${proof}`] : []), ...(seal ? [`SEAL ${seal}`] : []), L1, `ROUND ${r + 1}: ${rTitle(p.role.id, r)}`, L1, `You chose: ${p.picks[r].label}`, ...(mine ? ["", mine] : [])].join("\n");   // v11: no question (teacher, 2026-11-25)
     };
-    rrs.addEventListener("change", fill); rq.addEventListener("change", paint); fill();
+    rrs.addEventListener("change", paint); paint();
     $("#cprep").addEventListener("click", (e) => {
       const b = board(); b.replied = b.replied || []; if (!isMine(p.id) && b.replied.indexOf(p.id) < 0) { b.replied.push(p.id); store.set("cb_board", b); }
       const n = repliedIds(b).length, k = repliedIds(b).indexOf(p.id) + 1;
