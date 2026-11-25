@@ -415,14 +415,17 @@
       <p class="note"><b>Think about it.</b> ${esc(e.ask)}</p><p class="note"><b>Real people in roles like yours.</b> ${esc(role.echo)}</p>
       <section><h2>Your decisions</h2><ol class="journey">${S.log.map((x) => `<li><span class="jd">${esc(rDate(role.id, x.i))}</span><b>${esc(rTitle(role.id, x.i))}</b><span>${"ABC"[x.slot]}. ${esc(x.label)}</span><span class="jk">${esc(KIND_NOTE[x.kind])}${x.kind === realKind(role.id, x.i) ? " · ✓ same as history" : " · different from history"}</span></li>`).join("")}</ol><p class="small">You matched the real decision in ${S.log.filter((x) => x.kind === realKind(role.id, x.i)).length} of 6 rounds.</p></section>
       <section class="decoder"><h2>Decode a classmate</h2><p>Find a classmate's Padlet card from a different role. Copy their whole post and paste it here. You will see their choices and unlock their pieces of the messages.</p>${decoderForm()}</section>
-      <section class="padlet"><h2>Post to Padlet</h2><p>Add your card image and post text to the class Padlet. Then decode classmates from other roles by pasting their posts into the Decoder board, and reply to 2 of them.</p><p class="small"><b>Come back later:</b> every reply on your card has a SEAL code. Paste the replies into <b>Who trusted you?</b> on the Decoder board to see what your classmates decided.</p>
-        <div class="cardwrap" id="cardsvg">${cardSVG()}</div><div class="row"><button class="btn" id="dl">Download card image</button><button class="btn ghost" id="cpimg">Copy image</button></div>
+      <section class="padlet"><h2>Post to Padlet</h2><p>One button copies your card image and your post text together. In your role's column on the Padlet, click + and paste. Then decode classmates from other roles by pasting their posts into the Decoder board, and reply to 2 of them.</p><p class="small"><b>Come back later:</b> every reply on your card has a SEAL code. Paste the replies into <b>Who trusted you?</b> on the Decoder board to see what your classmates decided.</p>
+        <div class="cardwrap" id="cardsvg">${cardSVG()}</div>
         <div class="field"><label for="qsel">Question for your classmates</label><select id="qsel">${postQs(role, e).map((q, i) => `<option value="${i}">${esc(clip(q, 100))}</option>`).join("")}</select></div>
         <div class="field"><label for="qsel2">Second question (optional)</label><select id="qsel2"><option value="-1">No second question</option>${postQs(role, e).map((q, i) => `<option value="${i}">${esc(clip(q, 100))}</option>`).join("")}</select></div>
-        <div class="field"><label for="ptext">Post text (edit it so it sounds like you)</label><textarea id="ptext" rows="12"></textarea></div><div class="row"><button class="btn" id="cptext">Copy post text</button><button class="btn ghost" id="again">Play another role</button></div><p class="small cmsg" role="status"></p></section></main>`;
+        <div class="field"><label for="ptext">Post text (edit it so it sounds like you)</label><textarea id="ptext" rows="12"></textarea></div><div class="row"><button class="btn" id="cpboth">Copy card and text for Padlet</button></div><p class="small cmsg" id="pmsg" role="status"></p>
+        <details class="rmore"><summary>Copy them one at a time instead</summary><div class="row"><button class="mini" id="cptext">Copy post text only</button><button class="mini" id="cpimg">Copy card image only</button><button class="mini" id="dl">Download card image</button></div></details>
+        <div class="row"><button class="btn ghost" id="again">Play another role</button></div></section></main>`;
     const qs = postQs(role, e), paint = () => { const a = +$("#qsel").value, b2 = +$("#qsel2").value; $("#ptext").value = cardText([qs[a]].concat(b2 >= 0 && b2 !== a ? [qs[b2]] : [])); };
     $("#qsel").addEventListener("change", paint); $("#qsel2").addEventListener("change", paint); paint();
-    $("#cptext").addEventListener("click", (ev) => copyText($("#ptext").value, ev.currentTarget, "Copied. Paste it into your Padlet post."));
+    $("#cptext").addEventListener("click", () => { const m = $("#pmsg"), t = $("#ptext").value, ok = () => { m.textContent = "Post text copied. Paste it into your Padlet post."; }; if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, () => { m.textContent = "Select the post text and press Ctrl+C (Cmd+C on a Mac)."; }); });
+    $("#cpboth").addEventListener("click", copyBoth);
     $("#again").addEventListener("click", () => { store.set("cb_game", null); S = null; picked = null; go("pick"); });
     $("#dl").addEventListener("click", downloadCard); $("#cpimg").addEventListener("click", copyCard);
     bindDecoder();
@@ -465,7 +468,7 @@
     return new Promise((res) => c.toBlob(res, "image/png"));
   }
   async function downloadCard() {
-    const msg = (t) => { const m = $("#cardsvg").closest("section").querySelector(".cmsg"); if (m) m.textContent = t; };
+    const msg = (t) => { const m = $("#pmsg"); if (m) m.textContent = t; };
     try {
       const blob = await cardPNG(), name = "need-to-know-" + S.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".png";
       let dl = null; try { dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null; } catch (e) { }
@@ -473,8 +476,21 @@
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); msg("Card image downloaded. Attach it to your Padlet post.");
     } catch (e) { msg("Could not make the image. Take a screenshot of the card instead."); }
   }
+  /* v9: one copy holds both the card image and the post text, so a single paste in Padlet's post window adds both. */
+  async function copyBoth() {
+    const m = $("#pmsg"), t = $("#ptext").value;
+    try {
+      if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error("no ClipboardItem");
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": cardPNG(), "text/plain": new Blob([t], { type: "text/plain" }) })]);
+      m.textContent = "Copied your card and your post text. On the Padlet, click + in your role's column and paste (Ctrl+V, or Cmd+V on a Mac). If only one of them shows up, open Copy them one at a time instead.";
+    } catch (e) {
+      try { await navigator.clipboard.writeText(t); m.textContent = "Your browser could only copy the post text. Paste it into Padlet, then use Download card image below and attach the card."; }
+      catch (e2) { m.textContent = "Your browser would not copy. Select the post text and press Ctrl+C, then use Download card image below."; }
+      const d = $("#pmsg").nextElementSibling; if (d && d.tagName === "DETAILS") d.open = true;
+    }
+  }
   async function copyCard() {
-    const m = $("#cardsvg").closest("section").querySelector(".cmsg");
+    const m = $("#pmsg");
     try { const blob = await cardPNG(); await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]); m.textContent = "Card image copied. Paste it into Padlet."; } catch (e) { m.textContent = "Your browser would not copy the image. Use Download instead."; }
   }
 
