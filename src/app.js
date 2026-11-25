@@ -118,7 +118,7 @@
   const METERS = [["s", "Secrecy", "Does the enemy still believe its codes are safe?"], ["i", "Impact", "Did your intelligence change events?"], ["t", "Trust", "Do the people who rely on you still trust you?"]];
   const saveGame = (done) => { if (S) store.set("cb_game", { S: Object.assign({}, S, { name: "" }), done: !!done, at: Date.now() }); };
   const loadGame = () => { const g = store.get("cb_game", null); return g && g.S && g.S.role && L.roleById(g.S.role.id) && Array.isArray(g.S.log) ? g : null; };
-  const board = () => { const b = store.get("cb_board", { sig: [], own: null }); b.sig = b.sig || []; return b; };
+  const board = () => { const b = store.get("cb_board", { sig: [], own: null }); b.sig = (b.sig || []).filter((id) => !L.isExample(id)); return b; };
   /* Individual scenarios: a role's own version of a round, when its story happens away from the headline event. */
   const scen = (rid, i) => D.SCEN[rid + "-" + i] || null;
   const rTitle = (rid, i) => (scen(rid, i) || D.ROUNDS[i]).title, rDate = (rid, i) => (scen(rid, i) || D.ROUNDS[i]).date;
@@ -211,7 +211,7 @@
       <section class="how panel"><h2>Your mission</h2><ol class="steps">
         <li><span><b>Play your role.</b> Six rounds. Each has a private briefing, a coded fragment to crack, and orders to give.</span></li>
         <li><span><b>Post your file to Padlet.</b> You finish with a case card and a Signal ID.</span></li>
-        <li><span><b>Decode classmates.</b> Paste their Signal IDs into the decoder. You see what their role did, and pieces of the secret messages unlock.</span></li>
+        <li><span><b>Decode classmates.</b> Copy their Padlet posts and paste them into the decoder. You see what their role did, and pieces of the secret messages unlock.</span></li>
                 <li><span><b>Reply on Padlet.</b> Reply to 2 classmates you decode. The game writes the reply and copies it for you.</span></li>
         <li><span><b>Submit the decoded messages.</b> You cannot read all six messages alone. Decode all four other roles, then turn in the decoded messages on edio for credit for the assignment. Do not post them on Padlet.</span></li></ol></section></main>`;
     swapScene($(".hero-art"));
@@ -504,6 +504,7 @@
   function bindDecoder() {
     const run = () => {
       const raw = $("#sid").value, p = findSignal(raw), err = $("#derr"); $("#dres").innerHTML = "";
+      if (p && L.isExample(p.id)) { $("#sid").value = ""; err.textContent = "That's the Example Agent card from the Padlet. It shows what a card looks like, but it doesn't unlock any message pieces. Decode a classmate's card instead."; return; }
       if (!p) { err.textContent = raw.trim().length > 20 ? "No Signal ID found in what you pasted. Copy their whole Padlet post, including the SIGNAL ID line." : "That Signal ID does not decode. Check the letters and dashes. It looks like XX-ABCABC-K-YY."; return; }
       $("#sid").value = "";
       err.textContent = ""; const b = board(); if (b.sig.indexOf(p.id) < 0) { b.sig.push(p.id); store.set("cb_board", b); }

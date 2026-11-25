@@ -670,7 +670,10 @@ const Logic = (function () {
     if (ALPHA[h32(T + c[0] + c[1] + "!") % 32] !== c[2]) return null;
     return ((ALPHA.indexOf(c[1]) - h32(T + c[0]) % 32 + 64) % 32) >> 4;
   }
-  return { sealCode, readSeal, sealCheck, readCheck, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
+  /* Signal IDs used on the class Padlet's example card: they show what a card looks like but never count as a classmate. */
+  const EXAMPLE_IDS = ["BP-ACCBCC-RV"];
+  const isExample = (id) => EXAMPLE_IDS.indexOf(String(id || "").toUpperCase()) >= 0;
+  return { EXAMPLE_IDS, isExample, sealCode, readSeal, sealCheck, readCheck, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
 })();
 if (typeof module !== "undefined") module.exports = Logic;
 
@@ -762,6 +765,8 @@ if (typeof module !== "undefined") module.exports = Logic;
     }
     // the classmates they decoded
     const bad = [], decRoles = [];
+    if (sub.dec.some((id) => L.isExample(id))) warn.push("Lists the Example Agent card from the Padlet (BP-ACCBCC-RV). It doesn't count as a decoded classmate.");
+    sub.dec = sub.dec.filter((id) => !L.isExample(id));
     sub.dec.forEach((id) => { const p = L.parseSignal(id); if (!p) bad.push(id); else { decRoles.push(p.role.id); if (!covered[p.role.id]) covered[p.role.id] = id; } });
     if (bad.length) notes.push(`Not real Signal IDs: ${bad.join(", ")}.`);
     if (sub.decRaw === null) notes.push("No \"Decoded with Signal IDs from\" line.");

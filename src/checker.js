@@ -86,6 +86,8 @@
     }
     // the classmates they decoded
     const bad = [], decRoles = [];
+    if (sub.dec.some((id) => L.isExample(id))) warn.push("Lists the Example Agent card from the Padlet (BP-ACCBCC-RV). It doesn't count as a decoded classmate.");
+    sub.dec = sub.dec.filter((id) => !L.isExample(id));
     sub.dec.forEach((id) => { const p = L.parseSignal(id); if (!p) bad.push(id); else { decRoles.push(p.role.id); if (!covered[p.role.id]) covered[p.role.id] = id; } });
     if (bad.length) notes.push(`Not real Signal IDs: ${bad.join(", ")}.`);
     if (sub.decRaw === null) notes.push("No \"Decoded with Signal IDs from\" line.");

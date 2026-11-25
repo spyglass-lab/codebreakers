@@ -125,6 +125,9 @@ const Logic = (function () {
     if (ALPHA[h32(T + c[0] + c[1] + "!") % 32] !== c[2]) return null;
     return ((ALPHA.indexOf(c[1]) - h32(T + c[0]) % 32 + 64) % 32) >> 4;
   }
-  return { sealCode, readSeal, sealCheck, readCheck, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
+  /* Signal IDs used on the class Padlet's example card: they show what a card looks like but never count as a classmate. */
+  const EXAMPLE_IDS = ["BP-ACCBCC-RV"];
+  const isExample = (id) => EXAMPLE_IDS.indexOf(String(id || "").toUpperCase()) >= 0;
+  return { EXAMPLE_IDS, isExample, sealCode, readSeal, sealCheck, readCheck, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
 })();
 if (typeof module !== "undefined") module.exports = Logic;
