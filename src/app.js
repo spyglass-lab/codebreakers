@@ -690,6 +690,13 @@
   }
 
   /* ---------- completion post ---------- */
+  /* v11: the reflection is chosen, not typed: the most surprising message and a reason; typing is optional. */
+  const REFL_WHY = ["It showed how much people risked to keep a secret.", "It changed how a battle or campaign turned out.", "I didn't know this country or group played a part.", "It showed a secret being used without giving it away.", "It showed how a lie fooled the enemy.", "It made me think about whether the secret was worth its cost."];
+  function reflText() {
+    const m = $("#crm"), w = $("#crw"), t = $("#crefl"); if (!m) return "";
+    const mi = m.value === "" ? -1 : +m.value, wi = w.value === "" ? -1 : +w.value, own = t.value.trim();
+    return [mi >= 0 ? `Most surprising: Message ${mi + 1} (${D.ROUNDS[mi].title})` : "", wi >= 0 ? `Why: ${REFL_WHY[wi]}` : "", own ? "In my words: " + own : ""].filter(Boolean).join("\n");
+  }
   function completionText(b, parsed, refl) {
     const prog = b.prog || {}, mine = (b.own && L.roleById(b.own.role)) || null, nm = nameNow || "Anonymous";
     const ids = parsed.map((p) => p.id + " (" + p.role.short + ")").join(", ");
@@ -711,9 +718,11 @@
   }
   function completion(b, parsed, full) {
     if (full < 6) return `<section class="panel"><h2>Submission</h2><p>Decode all six messages to unlock your submission for the teacher. You need Signal IDs from all four other roles. ${6 - full} to go.</p>${verdictPanel(b, false)}</section>`;
-    return `<section class="padlet panel"><h2>All six messages decoded</h2>${verdictPanel(b, true)}<p><b>Do not post this on Padlet.</b> Other students could copy it. Copy it and turn it in on edio, in the assignment space. Add a sentence about what you learned.</p>
+    return `<section class="padlet panel"><h2>All six messages decoded</h2>${verdictPanel(b, true)}<p><b>Do not post this on Padlet.</b> Other students could copy it. Copy it and turn it in on edio, in the assignment space.</p>
       <div class="field"><label for="cnm">Your name (so your teacher knows who this is; never saved)</label><input id="cnm" maxlength="40" autocomplete="off" value="${esc(nameNow)}"></div>
-      <div class="field"><label for="crefl">Your reflection (one or two sentences)</label><textarea id="crefl" rows="3" placeholder="Which message surprised you most, and why?"></textarea></div>
+      <div class="field"><label for="crm">Which message surprised you most?</label><select id="crm"><option value="">Choose a message</option>${D.ROUNDS.map((r, i) => `<option value="${i}">Message ${i + 1}: ${esc(r.title)}</option>`).join("")}</select></div>
+      <div class="field"><label for="crw">Why?</label><select id="crw"><option value="">Choose a reason</option>${REFL_WHY.map((x, i) => `<option value="${i}">${esc(x)}</option>`).join("")}</select></div>
+      <div class="field"><label for="crefl">Add your own words (optional)</label><textarea id="crefl" rows="2"></textarea></div>
       <div class="field"><label for="cptext2">Your submission</label><textarea id="cptext2" rows="14" readonly></textarea></div>
       <div class="row"><button class="btn" id="cppost">Copy submission</button></div><p class="small cmsg" role="status"></p></section>`;
   }
@@ -774,7 +783,8 @@
     $("#bk").addEventListener("click", () => go(prevView === "board" ? "title" : prevView));
     bindDecoder(); bindSeals();
     $$("[data-sig]").forEach((c) => c.addEventListener("click", () => { const p = L.parseSignal(c.dataset.sig); showDecoded(p); $("#dres").scrollIntoView({ block: "nearest" }); }));
-    const cp = $("#cppost"); if (cp) { const ta = $("#cptext2"), refl = $("#crefl"), cnm = $("#cnm"), upd = () => { nameNow = cnm.value.trim(); ta.value = completionText(b, parsed, refl.value.trim()); }; refl.addEventListener("input", upd); cnm.addEventListener("input", upd); upd(); cp.addEventListener("click", (e) => copyText(ta.value, e.currentTarget, "Copied. Turn it in on edio. Do not post it on Padlet.")); }
+    const cp = $("#cppost"); if (cp) { const ta = $("#cptext2"), cnm = $("#cnm"), upd = () => { nameNow = cnm.value.trim(); ta.value = completionText(b, parsed, reflText()); }; ["#crm", "#crw"].forEach((s) => $(s).addEventListener("change", upd)); $("#crefl").addEventListener("input", upd); cnm.addEventListener("input", upd); upd();
+      cp.addEventListener("click", (e) => { if ($("#crm").value === "" || $("#crw").value === "") { const m = cp.closest(".row").nextElementSibling; m.textContent = "Choose the message that surprised you most, and why, first."; ($("#crm").value === "" ? $("#crm") : $("#crw")).focus(); return; } copyText(ta.value, e.currentTarget, "Copied. Turn it in on edio. Do not post it on Padlet."); }); }
     /* Clearing asks first. Option 1 forgets decoded classmates; option 2 also forgets other roles this student played
        (their pieces and Signal IDs), keeping the current game. Filed verdicts are never cleared, so results can't be redone. */
     const box = $("#clrbox"), clr = $("#clr");

@@ -165,7 +165,12 @@ a.btn { display: inline-block; text-decoration: none; } .btn:focus-visible, a:fo
 <p class="lead">Check students' private submissions. Every Signal ID is tested, so you can see who really decoded classmates from all five roles. Nothing you paste here is saved or sent anywhere.</p>
 <section class="how"><ol><li>Copy one or more submissions (each starts with <b>MISSION COMPLETE</b>) and paste them all into the box. They can be one after another.</li><li>Press <b>Check</b>. Each student gets one row: whether they are done, how many classmates they decoded, how many replies they posted, how many classmates decoded them, and anything to look at.</li><li>Use <b>Copy for a spreadsheet</b> if you want the table elsewhere. Full details, Trust or Traitor and the Unmasking are under the table, closed until you open them.</li></ol></section>
 <h2>SUBMISSIONS</h2><label class="small" for="subs">Paste submissions here</label><textarea id="subs" spellcheck="false" placeholder="MISSION COMPLETE · ..."></textarea>
-<div class="row"><button class="btn" id="go">Check</button><button class="btn ghost" id="clear">Clear</button></div><div id="out" aria-live="polite"></div>
+<div class="row"><button class="btn" id="go">Check</button><button class="btn ghost" id="clear">Clear</button></div>
+<section class="padin"><h2>REPLIES ON THE PADLET (OPTIONAL)</h2><p class="small">Skip searching the Padlet by hand. In Padlet, open <b>Share</b>, then <b>Export</b>, and save the board as a spreadsheet (Excel) or CSV. Then choose that file here. It is read on this computer only; nothing is uploaded. Each student's <b>Replies</b> column then counts the replies really found on the Padlet.</p>
+<div class="row"><label class="small" for="pfile">Padlet export file</label><input type="file" id="pfile" accept=".xlsx,.csv,.md,.txt,.html"><button class="btn ghost" id="padclear">Forget the Padlet file</button></div>
+<details><summary class="small">Or paste text copied from the Padlet</summary><textarea id="ptxt" spellcheck="false" rows="4"></textarea><div class="row"><button class="btn ghost" id="padgo">Read pasted text</button></div></details>
+<p class="small" id="padmsg" role="status"></p></section>
+<div id="out" aria-live="polite"></div>
 <h2>LOOK UP ONE SIGNAL ID</h2><p class="small">See the role, ending and all six choices behind any Signal ID, for example one on a Padlet card.</p>
 <div class="row"><label class="small" for="one">Signal ID</label><input id="one" placeholder="BP-ACBACB-K-FD" autocomplete="off" spellcheck="false" maxlength="16"><button class="btn" id="onego">Look up</button></div><div id="oneout" aria-live="polite"></div></main>
 <script>
@@ -671,6 +676,43 @@ if (typeof module !== "undefined") module.exports = Logic;
   const norm = (t) => String(t || "").toUpperCase().replace(/[^A-Z]+/g, " ").trim();
   const roleByName = (n) => D.ROLES.find((r) => norm(r.name) === norm(n));
 
+  /* v11: replies found on the Padlet. The teacher gives Padlet's export (Excel, CSV) or pasted Padlet text; it is read on this computer only.
+     Every "DECODED <ID> ... PROOF R-XXX" in it is a reply; a student's reply is one whose code matches one of their own Signal IDs. */
+  let padPairs = null;
+  function scanPadlet(text) {
+    const t = String(text).replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/<[^>]*>/g, " ").toUpperCase();
+    const re = /DECODED\s+([A-Z]{2}-[ABC]{6}(?:-[A-Z0-9])?-[A-Z0-9]{2})[\s\S]{0,160}?PROOF\s+(R-[A-Z0-9]{3})/g, out = {}; let m;
+    while ((m = re.exec(t))) out[m[1] + "|" + m[2]] = 1;
+    return out;
+  }
+  /* An .xlsx file is a zip of XML files: read them with the browser's own decompression (no libraries, nothing sent). */
+  async function unzipText(buf) {
+    const dv = new DataView(buf), td = new TextDecoder(); let e = -1;
+    for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; }
+    if (e < 0) throw new Error("not a zip");
+    const n = dv.getUint16(e + 10, true), out = []; let p = dv.getUint32(e + 16, true);
+    for (let k = 0; k < n; k++) {
+      const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lho = dv.getUint32(p + 42, true);
+      const name = td.decode(new Uint8Array(buf, p + 46, nl)); p += 46 + nl + xl + cl;
+      if (!/\.xml$/i.test(name)) continue;
+      const data = new Uint8Array(buf, lho + 30 + dv.getUint16(lho + 26, true) + dv.getUint16(lho + 28, true), csize);
+      if (method === 0) out.push(td.decode(data));
+      else if (method === 8) out.push(td.decode(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer()));
+    }
+    return out.join("\n");
+  }
+  function padCount(sub) {
+    if (!padPairs) return null; const own = (sub.own || []).filter((o) => L.parseSignal(o)), found = {};
+    Object.keys(padPairs).forEach((k) => { const [id, code] = k.split("|"); if (own.indexOf(id) < 0 && own.some((o) => L.proofCode(o, id) === code)) found[id] = 1; });
+    const listed = (sub.replies || []).filter((x) => own.some((o) => L.proofCode(o, x.id) === x.code)), missing = listed.filter((x) => !found[x.id]).length;
+    return { found: Object.keys(found).length, missing };
+  }
+  function setPadlet(text, label) {
+    padPairs = scanPadlet(text); const n = Object.keys(padPairs).length, m = $("#padmsg");
+    if (m) m.textContent = n ? `Read ${label}: ${n} game repl${n === 1 ? "y" : "ies"} found on the Padlet.` : `Read ${label}, but found no game replies in it. Use Padlet's Excel export (it includes comments), or check that students pasted the replies the game wrote.`;
+    if ($("#out").innerHTML) run();
+  }
+
   /* Read one submission's text into its parts. */
   function readOne(text) {
     const head = /MISSION COMPLETE\s*·\s*([^\n·]*)(?:·\s*([^\n]*))?/.exec(text) || [];
@@ -680,7 +722,7 @@ if (typeof module !== "undefined") module.exports = Logic;
     const rcLine = line("Reply codes"), replies = []; if (rcLine) { const re = /\b([A-Z]{2}-[ABC]{6}(?:-[A-Z0-9])?-[A-Z0-9]{2})\s+(R-[A-Z0-9]{3})\b/g; let m; while ((m = re.exec(rcLine.toUpperCase()))) replies.push({ id: m[1], code: m[2] }); }
     const vdLine = line("Verdicts"), verdicts = [];
     if (vdLine) { let m; VD_RE.lastIndex = 0; while ((m = VD_RE.exec(vdLine.toUpperCase()))) verdicts.push({ id: m[1], vd: { v: m[2] } }); }
-    const refl = (text.split(/^\s*Decoded with Signal IDs from:.*$/mi)[1] || "").replace(/^\s*(Verdicts|Verdicts right|Interrogation score|Reply codes)\s*:.*$/gmi, "");
+    const refl = (text.split(/^\s*Decoded with Signal IDs from:.*$/mi)[1] || "").replace(/^\s*(Verdicts|Verdicts right|Interrogation score|Reply codes|Most surprising|Why)\s*:.*$/gmi, "").replace(/^\s*In my words\s*:\s*/mi, "");
     return {
       name: (head[1] || "").trim() || "(no name)", roleName: (head[2] || "").trim(),
       own: ownLine === null ? null : (ownLine.toUpperCase().match(ID_RE) || []),
@@ -770,13 +812,14 @@ if (typeof module !== "undefined") module.exports = Logic;
     /* Engagement view (v5): Done? plus who each student connected with. "Decoded by" counts other pasted submissions that list this student's own Signal ID. No flag for a low count (teacher's choice). */
     const decodedBy = (r) => rows.filter((o) => o !== r && (r.sub.own || []).some((id) => o.sub.dec.indexOf(id) >= 0)).length;
     const nDec = (r) => r.sub.dec.filter((id) => L.parseSignal(id) && (r.sub.own || []).indexOf(id) < 0).length;
+    const padCell = (r) => { const c = padCount(r.sub); return c ? `${c.found} found${c.missing ? `, ${c.missing} listed but not found` : ""}` : (r.sub.hasRc ? String(r.rc.good.length) : "—"); };
     const doneTxt = (r) => r.ok ? (r.warn.length ? "✓ Done, see note" : "✓ Done") : "✗ Not done";
     $("#out").innerHTML = `<p class="sum"><b>${rows.length}</b> submission${rows.length > 1 ? "s" : ""} checked · <b class="ok">${nOk} done</b>${nNote ? ` (${nNote} with a note)` : ""} · <b class="bad">${rows.length - nOk} not done</b></p>
-      <table class="simple"><thead><tr><th>Student</th><th>Role</th><th>Done?</th><th>Classmates decoded</th><th>Replies posted</th><th>Decoded by</th><th>Notes</th></tr></thead><tbody>${rows.map((r) => `<tr class="${r.ok ? (r.warn.length ? "w" : "g") : "b"}">
-        <td>${esc(r.sub.name)}</td><td>${esc(r.role ? r.role.name : r.sub.roleName || "?")}</td><td><b>${doneTxt(r)}</b></td><td>${nDec(r)}</td><td>${r.sub.hasRc ? r.rc.good.length : "—"}</td><td>${decodedBy(r)}</td>
+      <table class="simple"><thead><tr><th>Student</th><th>Role</th><th>Done?</th><th>Classmates decoded</th><th>${padPairs ? "Replies found on Padlet" : "Replies posted"}</th><th>Decoded by</th><th>Notes</th></tr></thead><tbody>${rows.map((r) => `<tr class="${r.ok ? (r.warn.length ? "w" : "g") : "b"}">
+        <td>${esc(r.sub.name)}</td><td>${esc(r.role ? r.role.name : r.sub.roleName || "?")}</td><td><b>${doneTxt(r)}</b></td><td>${nDec(r)}</td><td>${padCell(r)}</td><td>${decodedBy(r)}</td>
         <td>${r.notes.concat(r.warn).map((n) => `<div>${esc(n)}</div>`).join("") || ""}</td></tr>`).join("")}</tbody></table>
       <div class="row"><button class="btn" id="tsv1">Copy for a spreadsheet</button><span class="small" id="tsv1msg" role="status"></span></div>
-      <p class="small"><b>Done?</b> means all six messages are right and all five roles are covered. <b>Replies posted</b> counts the reply proof codes that match the student; to confirm one, search the Padlet for it (Ctrl+F). <b>Decoded by</b> counts classmates in this paste who decoded the student, so it grows as more submissions come in.</p>
+      <p class="small"><b>Done?</b> means all six messages are right and all five roles are covered. ${padPairs ? "<b>Replies found on Padlet</b> counts this student's replies in the Padlet file you gave, matched by proof code. <i>Listed but not found</i> means a reply in their submission is not on the Padlet (not posted yet, edited, or deleted)." : "<b>Replies posted</b> counts the reply proof codes in the submission that match the student. To check they are really on the Padlet, add the Padlet's export below the submissions box."} <b>Decoded by</b> counts classmates in this paste who decoded the student, so it grows as more submissions come in.</p>
       <details class="more"><summary>Full details, Trust or Traitor and the Unmasking</summary>
       <table><thead><tr><th>Student</th><th>Role</th><th>Own Signal ID</th><th>Roles covered</th><th>Messages</th><th>Result</th><th>Reply codes</th><th>Verdicts</th><th>As agent</th><th>Notes</th></tr></thead><tbody>${rows.map((r) => `<tr class="${r.ok ? (r.warn.length ? "w" : "g") : "b"}">
         <td>${esc(r.sub.name)}</td><td>${esc(r.role ? r.role.name : r.sub.roleName || "?")}</td><td class="mono">${esc((r.sub.own || []).join(", ") || "none")}</td>
@@ -788,7 +831,7 @@ if (typeof module !== "undefined") module.exports = Logic;
       <p class="small"><b>Verdicts</b> (Trust or Traitor): how many of the agents they judged they got right (Trust for a loyal agent, Traitor for a double agent). <b>As agent</b>: how many classmates trusted a loyal agent, or were fooled by a double agent.</p>
       <div class="row"><button class="btn ghost" id="unbtn" aria-expanded="false">Show the Unmasking</button><span class="small">Reveals who was a double agent. Show it to the class only when everyone is done.</span></div><div id="unmask" hidden>${unmaskHTML(rows, ag)}</div></details>`;
     $("#tsv1").addEventListener("click", () => {
-      const tsv = [["Student", "Role", "Done", "Classmates decoded", "Replies posted", "Decoded by", "Notes"].join("\t")].concat(rows.map((r) => [r.sub.name, r.role ? r.role.name : r.sub.roleName, r.ok ? "Done" : "Not done", nDec(r), r.sub.hasRc ? r.rc.good.length : "", decodedBy(r), r.notes.concat(r.warn).join(" ")].join("\t"))).join("\n");
+      const tsv = [["Student", "Role", "Done", "Classmates decoded", padPairs ? "Replies found on Padlet" : "Replies posted", "Decoded by", "Notes"].join("\t")].concat(rows.map((r) => [r.sub.name, r.role ? r.role.name : r.sub.roleName, r.ok ? "Done" : "Not done", nDec(r), padCell(r), decodedBy(r), r.notes.concat(r.warn).join(" ")].join("\t"))).join("\n");
       navigator.clipboard.writeText(tsv).then(() => { $("#tsv1msg").textContent = "Copied. Paste into a spreadsheet."; }, () => { $("#tsv1msg").textContent = "Your browser would not copy."; });
     });
     $("#unbtn").addEventListener("click", (e) => { const u = $("#unmask"), open = u.hidden; u.hidden = !open; e.currentTarget.textContent = open ? "Hide the Unmasking" : "Show the Unmasking"; e.currentTarget.setAttribute("aria-expanded", open); if (open) u.scrollIntoView({ block: "start" }); });
@@ -806,6 +849,13 @@ if (typeof module !== "undefined") module.exports = Logic;
   }
 
   $("#go").addEventListener("click", run);
+  $("#pfile").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return; const m = $("#padmsg");
+    try { const buf = await f.arrayBuffer(), zip = new Uint8Array(buf, 0, 2); setPadlet(zip[0] === 0x50 && zip[1] === 0x4b ? await unzipText(buf) : new TextDecoder().decode(buf), f.name); }
+    catch (err) { m.textContent = "Could not read that file. Try Padlet's Excel or CSV export, or paste the Padlet text instead."; }
+  });
+  $("#padgo").addEventListener("click", () => { const t = $("#ptxt").value; if (t.trim()) setPadlet(t, "the pasted text"); });
+  $("#padclear").addEventListener("click", () => { padPairs = null; $("#pfile").value = ""; $("#ptxt").value = ""; $("#padmsg").textContent = ""; if ($("#out").innerHTML) run(); });
   $("#clear").addEventListener("click", () => { $("#subs").value = ""; $("#out").innerHTML = ""; });
   $("#onego").addEventListener("click", look); $("#one").addEventListener("keydown", (e) => { if (e.key === "Enter") look(); });
 })();
