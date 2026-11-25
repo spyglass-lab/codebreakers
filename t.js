@@ -45,7 +45,7 @@ const { chromium } = require('playwright'); const L = require('./src/logic.js');
   if (!(await p.inputValue('#rtext')).includes('SEAL ' + L.sealCheck(id, sid, 1, { r: 1, m: 'W' }))) errs.push('REPLY seal does not carry the check');
   if (!/Reply copied \(1 of 2\)/.test(await p.textContent('#rmsg'))) errs.push('ONE CLICK did not copy the reply: ' + await p.textContent('#rmsg'));
   { const nd = await p.innerText('#need'); if (!/Replies: 1 of 2 done/.test(nd) || !/Still needed:/.test(nd) || nd.includes(L.roleById(o).name)) errs.push('NEED line wrong after first decode: ' + nd); }
-  if (!(await p.isVisible('#cprep'))) errs.push('reply block hidden after verdict');
+  if (!(await p.isVisible('#cprep'))) errs.push('reply block hidden after verdict'); if (!(await p.isVisible('#rtext'))) errs.push('See or change your reply is not open by default');
   { const rt = await p.inputValue('#rtext'), r = +(await p.inputValue('#rr')); const me = L.parseSignal(id).picks[r].label, them = L.parseSignal(sid).picks[r].label; if (me === them && L.parseSignal(id).picks.some((x, i) => x.label !== L.parseSignal(sid).picks[i].label)) errs.push('AUTO ROUND picked a round with the same choice'); if (!rt.includes('ROUND ' + (r + 1))) errs.push('reply round mismatch'); }
   { const rt = await p.inputValue('#rtext'); if (!rt.includes('SEAL ' + L.sealCode(id, sid, 1))) errs.push('REPLY has no matching SEAL:\n' + rt); } await p.waitForSelector('.vfiled'); await p.screenshot({ path: `shots/${mode}-decoded.png`, fullPage: true });
   await p.click('[data-go="board"]'); await p.waitForTimeout(200); await p.screenshot({ path: `shots/${mode}-board.png`, fullPage: true });

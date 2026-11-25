@@ -520,7 +520,7 @@
     const rows = p.picks.map((x, i) => `<li><span class="jd">R${i + 1} · ${esc(rTitle(p.role.id, i))}</span><span class="pc">“${esc(L.piece(i, p.role.id))}”</span><span>${esc(x.label)}</span></li>`).join("");
     const sameRole = mine && mine.role.id === p.role.id;
     return `<div class="paper decoded"><p class="src">DECODED · ${esc(p.id)}</p><div class="dp"><div>${ART.portrait(p.role.id, "dc" + p.role.id)}</div><div><h3>${esc(p.role.name)}</h3><p><b>${esc(p.ending.title)}</b> · ${esc(p.rank.title)} · score ${p.fs.total}</p><p class="small">Their pieces are now on the board.</p></div></div>${sameRole ? `<p class="warn">This is the same role as yours, so it adds no new pieces. You can still compare their reports with yours below.</p>` : ""}${interHTML(p)}<section class="replybox" id="replybox"><h3>Your reply for the Padlet</h3><div class="row"><button class="btn" id="cprep">Copy reply</button></div><p class="small cmsg" id="rmsg" role="status"></p>
-      <details class="rmore"><summary>See or change your reply</summary>
+      <details class="rmore" open><summary>See or change your reply</summary>
       <div class="field"><label for="rr">Reply about round</label><select id="rr">${D.ROUNDS.map((r, i) => `<option value="${i}">${i + 1}. ${esc(rTitle(p.role.id, i))}</option>`).join("")}</select></div>
       <div class="field"><label for="rq">Question for them</label><select id="rq"></select></div>
       <textarea id="rtext" rows="9" readonly aria-label="Reply text"></textarea><p class="small" id="rproof"></p></details></section>
