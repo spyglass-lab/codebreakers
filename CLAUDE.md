@@ -353,3 +353,4 @@ Teacher: random easter-egg help so students decode 3 roles, not 4; "hidden find 
 - Codebook released into v11 in place (2026-11-25, teacher: "Yes, update v11").
 - Briefing slide "How a round works" tells students to keep their eyes open for a hidden folder (teacher request).
 - Hidden folder released into v11 in place (2026-11-25, teacher: "Yes, update v11").
+- **Guide says edio only (2026-11-25, teacher keeps the game within their school):** removed "edit if your school uses something else" and "decide how students hand in" from Before class; v11 guide updated in place.
