@@ -440,6 +440,14 @@ svg.portrait, svg.scene { image-rendering: pixelated; shape-rendering: crispEdge
 .chkfile { margin: 8px 0; padding: 8px 12px; background: rgba(0, 0, 0, .05); border-left: 4px solid #8a8878; } .chkfile .src { margin: 0 0 4px; }
 .chklist { margin: 4px 0 6px 18px; padding: 0; }
 
+/* ---------- v11: the captured codebook (a small folded corner in one round's Real History box) ---------- */
+.rec .recbody { position: relative; }
+.cbfind { position: absolute; right: -2px; bottom: -2px; width: 46px; height: 46px; padding: 0; border: 0; cursor: pointer; background: linear-gradient(135deg, transparent 50%, #c9a24a 50%, #a8832f 100%); opacity: .55; transition: opacity .3s; }
+.cbfind span { position: absolute; right: 2px; bottom: 4px; font: 700 7px/1 var(--mono); letter-spacing: .08em; color: #3a2a0c; transform: rotate(-45deg); transform-origin: right bottom; }
+.cbfind:hover, .cbfind:focus-visible { opacity: 1; } .cbfind:focus-visible { outline: 3px solid var(--focus); }
+@media (prefers-reduced-motion: no-preference) { .cbfind { animation: cbglint 4s ease-in-out infinite; } @keyframes cbglint { 0%, 80%, 100% { opacity: .5; } 90% { opacity: .95; } } }
+.cbpaper { margin: 12px 0; border-left: 4px solid #a8832f; }
+
 </style>
 <div id="app"></div>
 <script>
@@ -934,7 +942,9 @@ const Logic = (function () {
   /* Signal IDs used on the class Padlet's example card: they show what a card looks like but never count as a classmate. */
   const EXAMPLE_IDS = ["BP-ACCBCC-RV"];
   const isExample = (id) => EXAMPLE_IDS.indexOf(String(id || "").toUpperCase()) >= 0;
-  return { EXAMPLE_IDS, isExample, sealCode, readSeal, sealCheck, readCheck, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
+  /* v11: captured codebook. "C-" + 3 characters from the student's own Signal ID and the unlocked role, checked by Teacher Check. */
+  function cbCode(own, roleId) { const s = h32(String(own).toUpperCase() + "#CB#" + roleId); return "C-" + ALPHA[s % 32] + ALPHA[(s >> 5) % 32] + ALPHA[h32(roleId + "!" + s) % 32]; }
+  return { cbCode, EXAMPLE_IDS, isExample, sealCode, readSeal, sealCheck, readCheck, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
 })();
 if (typeof module !== "undefined") module.exports = Logic;
 
@@ -2551,10 +2561,11 @@ const RECMAPS = (function () {
     const head = `<div><p class="kick">ROUND ${S.i + 1} OF 6 · ${esc(rDate(role.id, S.i))}${sc ? ` · ${esc(sc.place.toUpperCase())}` : ""}</p><h1 data-focus tabindex="-1">${esc(rTitle(role.id, S.i))}</h1></div>`;
     let body = "", cur = 0, obj = OBJ.brief;
     if (stage === "brief") {
+      cbAssign();
       const prevK = S.i > 0 && S.log[S.i - 1] ? S.log[S.i - 1].kind : null, prevOff = S.i > 0 && D.ROLE_HIST[role.id][S.i - 1], ec = !prevK ? null : prevOff ? { t: D.ECHO_GENERIC[prevK] } : D.ECHO[S.i] ? D.ECHO[S.i][prevK] : null;
       body = `${ec ? `<aside class="echo" aria-label="Your war so far"><span class="echost">YOUR WAR SO FAR</span><p class="echok">Because of your orders in round ${S.i}: ${esc(rTitle(role.id, S.i - 1))}</p><p class="echot">${esc(ec.t)}</p>${ec.real ? `<p class="echor"><b>Real history:</b> ${esc(ec.real)}</p>` : ""}</aside>` : ""}<div class="hero-art small" data-scene="${imgSlot}">${ART.scene(sc ? sc.scene : rd.scene)}</div>${timelineStrip(S.i, sc)}<div class="paper">${(sc ? sc.sitrep : rd.sitrep).map((p) => `<p>${esc(p)}</p>`).join("")}${sc && D.MEANWHILE[S.i] ? `<p class="meanwhile">${esc(D.MEANWHILE[S.i])}</p>` : ""}</div>
-        <aside class="rec" aria-label="From the record"><span class="recst">REAL HISTORY</span><div class="recbody">${sc ? `<p class="reck">FROM THE RECORD · ${esc(hist.label)}</p><p class="rect">${esc(hist.t)}</p>` : `<p class="reck">FROM THE RECORD · ${esc(D.REC[S.i].label)}</p><p class="rect">${esc(D.REC[S.i].text)}</p>${hist ? `<div class="recrole"><p class="reck">ON YOUR FRONT · ${esc(hist.label)}</p><p class="rect">${esc(hist.t)}</p></div>` : ""}`}<p class="recf">This really happened. Keep it in mind when you choose your orders.</p></div>${IMG_BUILTIN[imgSlot] || CAN_SWAP ? `<figure class="recimg"><button class="zoombtn" id="zoom" aria-label="Enlarge the image: ${esc(recLabel)}"><img data-slot="${imgSlot}" src="${imgSrc(imgSlot)}" onload="__imgOk(this)" onerror="__imgNext(this)" alt="Illustration: ${esc(recLabel)}"><span class="zoomhint" aria-hidden="true">⤢ Click to enlarge</span></button></figure>` : `<figure class="recmap">${ART.map(S.i)}<figcaption>Sketch map, not to scale</figcaption></figure>`}</aside>
-        <p class="eq"><b>Essential question</b> ${esc(rd.eq)}</p><div class="terms">${rd.terms.map((t) => `<p><b>${esc(t.t)}.</b> ${esc(t.d)}</p>`).join("")}</div>
+        <aside class="rec" aria-label="From the record"><span class="recst">REAL HISTORY</span><div class="recbody">${sc ? `<p class="reck">FROM THE RECORD · ${esc(hist.label)}</p><p class="rect">${esc(hist.t)}</p>` : `<p class="reck">FROM THE RECORD · ${esc(D.REC[S.i].label)}</p><p class="rect">${esc(D.REC[S.i].text)}</p>${hist ? `<div class="recrole"><p class="reck">ON YOUR FRONT · ${esc(hist.label)}</p><p class="rect">${esc(hist.t)}</p></div>` : ""}`}<p class="recf">This really happened. Keep it in mind when you choose your orders.</p>${cbHere() ? `<button class="cbfind" id="cbfind" aria-label="Something is tucked behind this file. Pull it out."><span aria-hidden="true">CAPTURED</span></button>` : ""}</div>${IMG_BUILTIN[imgSlot] || CAN_SWAP ? `<figure class="recimg"><button class="zoombtn" id="zoom" aria-label="Enlarge the image: ${esc(recLabel)}"><img data-slot="${imgSlot}" src="${imgSrc(imgSlot)}" onload="__imgOk(this)" onerror="__imgNext(this)" alt="Illustration: ${esc(recLabel)}"><span class="zoomhint" aria-hidden="true">⤢ Click to enlarge</span></button></figure>` : `<figure class="recmap">${ART.map(S.i)}<figcaption>Sketch map, not to scale</figcaption></figure>`}</aside>
+        <div id="cbbox"></div><p class="eq"><b>Essential question</b> ${esc(rd.eq)}</p><div class="terms">${rd.terms.map((t) => `<p><b>${esc(t.t)}.</b> ${esc(t.d)}</p>`).join("")}</div>
         ${S.i === 0 ? `<p class="gauge-help">Your three gauges: <b>Secrecy</b> (does the enemy still trust its codes?), <b>Impact</b> (did your intelligence change events?) and <b>Trust</b> (do your colleagues still rely on you?). Strong careers need all three.</p>` : ""}
         <div class="row"><button class="btn" id="next">Open your envelope</button></div>`;
     } else if (stage === "work") {
@@ -2583,6 +2594,7 @@ const RECMAPS = (function () {
     root.innerHTML = topbar() + `<main class="wrap">${hud()}${head}${steps(cur)}<div class="obj" role="note"><span>OBJECTIVE</span><p id="objt">${esc(obj)}</p></div>${body}</main>`;
     if (stage === "brief") { const nowEl = $(".tl .now"); if (nowEl) nowEl.parentNode.scrollLeft = Math.max(0, nowEl.offsetLeft - 60); }
     if (stage === "brief") { const zb = $("#zoom"); if (zb) zb.addEventListener("click", () => { const im = zb.querySelector("img"); openZoom(im.currentSrc || im.src, recLabel, zb); }); swapScene($(".hero-art.small")); }
+    if (stage === "brief") { const cf = $("#cbfind"); if (cf) cf.addEventListener("click", () => { cf.remove(); cbFind(); const cbx = $("#cbbox"); if (cbx) cbx.scrollIntoView({ block: "nearest" }); }); }
     if (stage === "brief") { const go1 = () => typeIn(); if (titleCard) { titleCard = false; showTitleCard(go1); } else go1(); }
     if (stage === "outcome") { const lg = S.log[S.log.length - 1], st = STAMPS[lg.kind] || ["FILED", "calm"], pp = $(".paper"); if (pp) { pp.classList.add("outc"); const sp = document.createElement("span"); sp.className = "dstamp"; sp.dataset.tone = st[1]; sp.textContent = st[0]; pp.appendChild(sp); if (!noFx()) { pp.classList.add("pre"); setTimeout(() => { pp.classList.remove("pre"); sp.classList.add("slam"); pp.classList.add("thump"); sfx("slam"); }, 650); } } }
     if (stage === "brief") $("#next").addEventListener("click", () => { stage = "work"; solved = false; chosen = null; render(); window.scrollTo(0, 0); });
@@ -2832,9 +2844,26 @@ const RECMAPS = (function () {
       : (others.length ? `<b>Still needed:</b> ${list}. Find a card from ${others.length === 1 ? "that role" : "each"} in ${others.length === 1 ? "its" : "their"} column on the Padlet.` : "") + (mineMiss ? ` ${others.length ? "And finish" : "<b>Still needed:</b> finish"} your own game for the rest of your role's pieces.` : "");
     const n = Math.min(repliedIds(b).length, REPLIES_NEEDED);
     const reps = `<b>Replies:</b> ${n} of ${REPLIES_NEEDED} done.${n >= REPLIES_NEEDED ? " More are welcome, but not needed." : ""}`;
-    return `<p>${roles}</p><p>${reps}</p>`;
+    const cbl = b.cb && b.cb.role ? `<p><b>Captured codebook:</b> the ${esc(L.roleById(b.cb.role).name)} pieces are unlocked.</p>` : "";
+    return `<p>${roles}</p>${cbl}<p>${reps}</p>`;
   }
   const paintNeed = () => { const el = $("#need"); if (el) el.innerHTML = needHTML(board()); };
+  /* v11: the captured codebook. Each game hides one in a random round (2-5); it unlocks one other role's pieces, chosen at random.
+     One per student, ever: once cb_board.cb is set, no more codebooks appear. History checked against the Archive and docs; teacher to proofread. */
+  const CODEBOOKS = {
+    BP: { t: "Codebooks from U-110", d: "9 May 1941, south of Iceland. A boarding party from HMS Bulldog took the German submarine U-110's Enigma machine and codebooks before it sank. In your hands, they let Bletchley Park read these signals." },
+    NV: { t: "Codebooks from the submarine I-1", d: "January 1943, Guadalcanal. Two New Zealand ships drove the Japanese submarine I-1 aground, and codebooks and documents were recovered from the wreck. In your hands, they open the Navy codebreakers' work." },
+    FA: { t: "The Atlantic Wall map", d: "May 1942, Caen. René Duchez, a house painter working in a German office, slipped out a secret map of the Atlantic Wall defenses and passed it to the Resistance. In your hands, it opens the Resistance couriers' files." },
+    MI: { t: "German agents' codes", d: "1940s, London. The codes German intelligence gave its \"agents\" in Britain went straight to MI5, because many of those agents were really working for Britain. In your hands, they open the MI5 case officers' files." },
+    UL: { t: "Papers from Rommel's listening unit", d: "10 July 1942, Tel el Eisa, Egypt. Australian troops captured Rommel's radio-intercept company and its papers, which showed how much the Germans had learned from careless British radio talk. In your hands, they open the Ultra liaison officers' files." }
+  };
+  function cbAssign() { if (!S || S.cb) return; const others = D.ROLES.map((x) => x.id).filter((id) => id !== S.role.id); S.cb = { r: 1 + Math.floor(Math.random() * 4), role: others[Math.floor(Math.random() * others.length)] }; }
+  const cbHere = () => S && S.cb && S.i === S.cb.r && !board().cb;
+  function cbFind() {
+    const b = board(); if (b.cb) return; b.cb = { role: S.cb.role, from: S.role.id }; store.set("cb_board", b); saveGame(false);
+    const c = CODEBOOKS[S.cb.role], who = L.roleById(S.cb.role), box = $("#cbbox");
+    if (box) box.innerHTML = `<div class="paper cbpaper" role="status"><p class="src">CAPTURED · ${esc(c.t)}</p><p>${esc(c.d)}</p><p><b>The ${esc(who.name)} pieces of all six messages are now on your Decoder board.</b> You only need to decode the other roles. A captured codebook works only once, so there won't be another.</p></div>`;
+  }
   let repaintReply = null;
   function showDecoded(p) { $("#dres").innerHTML = decodedCard(p); repaintReply = bindReply(p); bindInter(p); }
 
@@ -2992,10 +3021,12 @@ const RECMAPS = (function () {
   function completionText(b, parsed, refl) {
     const prog = b.prog || {}, mine = (b.own && L.roleById(b.own.role)) || null, nm = nameNow || "Anonymous";
     const ids = parsed.map((p) => p.id + " (" + p.role.short + ")").join(", ");
-    return `MISSION COMPLETE · ${nm.toUpperCase()}${mine ? " · " + mine.name : ""}\nI decoded all six secret messages with help from classmates.\n\n` + D.ROUNDS.map((r, i) => `${i + 1}. Message ${i + 1} (${r.date}): ${r.msg.join(" ")}`).join("\n") + `\n\nMy Signal ID: ${Object.values(b.mine || {}).join(", ") || "not recorded"}\nDecoded with Signal IDs from: ${ids || "none yet"}\n` + replyLine(parsed) + verdictLines(b) + (refl ? "\n" + refl + "\n" : "");
+    return `MISSION COMPLETE · ${nm.toUpperCase()}${mine ? " · " + mine.name : ""}\nI decoded all six secret messages with help from classmates.\n\n` + D.ROUNDS.map((r, i) => `${i + 1}. Message ${i + 1} (${r.date}): ${r.msg.join(" ")}`).join("\n") + `\n\nMy Signal ID: ${Object.values(b.mine || {}).join(", ") || "not recorded"}\nDecoded with Signal IDs from: ${ids || "none yet"}\n` + replyLine(parsed) + cbLine(b) + verdictLines(b) + (refl ? "\n" + refl + "\n" : "");
   }
   /* Reply proof codes in the submission: "Reply codes: <ID> R-XXX; …", one per decoded classmate. Teacher Check recomputes them. */
   function replyLine(parsed) { const me = myId(), b = board(), list = parsed.filter((p) => !isMine(p.id) && (!b.replied || b.replied.indexOf(p.id) >= 0)); if (!me || !list.length) return "Reply codes: none\n"; return `Reply codes: ${list.map((p) => p.id + " " + L.proofCode(me, p.id)).join("; ")}\n`; }
+  /* v11: the captured codebook, if found: "Codebook: <role name> C-XXX". The code is made from the student's own Signal ID. */
+  function cbLine(b) { const me = myId(); if (!b.cb || !b.cb.role || !me) return ""; return `Codebook: ${L.roleById(b.cb.role).name} ${L.cbCode(me, b.cb.role)}\n`; }
   /* Verdicts in the submission (v6): "<ID> A" (trust) or "<ID> D" (traitor). Teacher Check rescores them from the IDs. */
   function verdictList(b) { return Object.keys(b.verdicts || {}).map((id) => ({ id, vd: b.verdicts[id], p: L.parseSignal(id) })).filter((x) => x.p && x.p.alleg != null); }
   function verdictLines(b) {
@@ -3009,7 +3040,7 @@ const RECMAPS = (function () {
     return `<div class="paper vlist"><p class="src">UNSEALED · YOUR VERDICTS</p>${v.map((x) => `<div class="vrow"><p><b>${esc(x.id)}</b> · ${esc(x.p.role.name)}<br>${esc(vdText(x.p, x.vd))}</p>${vdResult(x.p, x.vd)}</div>`).join("")}</div>`;
   }
   function completion(b, parsed, full) {
-    if (full < 6) return `<section class="panel"><h2>Submission</h2><p>Decode all six messages to unlock your submission for the teacher. You need Signal IDs from all four other roles. ${6 - full} to go.</p>${verdictPanel(b, false)}</section>`;
+    if (full < 6) return `<section class="panel"><h2>Submission</h2><p>Decode all six messages to unlock your submission for the teacher. You need Signal IDs from ${b.cb && b.cb.role ? "the other three roles (your captured codebook covers the fourth)" : "all four other roles"}. ${6 - full} to go.</p>${verdictPanel(b, false)}</section>`;
     return `<section class="padlet panel"><h2>All six messages decoded</h2>${verdictPanel(b, true)}<p><b>Do not post this on Padlet.</b> Other students could copy it. Copy it and turn it in on edio, in the assignment space.</p>
       <div class="field"><label for="cnm">Your name (so your teacher knows who this is; never saved)</label><input id="cnm" maxlength="40" autocomplete="off" value="${esc(nameNow)}"></div>
       <div class="field"><label for="crm">Which message surprised you most?</label><select id="crm"><option value="">Choose a message</option>${D.ROUNDS.map((r, i) => `<option value="${i}">Message ${i + 1}: ${esc(r.title)}</option>`).join("")}</select></div>
@@ -3046,7 +3077,7 @@ const RECMAPS = (function () {
 
   /* ---------- board ---------- */
   function knownFn(b) {
-    const have = {}; b.sig.map(L.parseSignal).filter(Boolean).forEach((p) => { have[p.role.id] = true; });
+    const have = {}; b.sig.map(L.parseSignal).filter(Boolean).forEach((p) => { have[p.role.id] = true; }); if (b.cb && b.cb.role) have[b.cb.role] = true;
     const own = b.own || null, prog = Object.assign({}, b.prog || {}); if (own && prog[own.role] === undefined) prog[own.role] = own.rounds;
     return (r, rid) => (prog[rid] || 0) > r || !!have[rid];
   }

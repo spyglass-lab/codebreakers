@@ -56,6 +56,7 @@
     const ownLine = line("My Signal IDs?"), decLine = line("Decoded with Signal IDs from");
     const msgs = {}; text.split(/\r?\n/).forEach((ln) => { const m = /^\s*([1-6])\.\s.*\):\s*(.+)$/.exec(ln); if (m) msgs[+m[1] - 1] = m[2].trim(); });
     const rcLine = line("Reply codes"), replies = []; if (rcLine) { const re = /\b([A-Z]{2}-[ABC]{6}(?:-[A-Z0-9])?-[A-Z0-9]{2})\s+(R-[A-Z0-9]{3})\b/g; let m; while ((m = re.exec(rcLine.toUpperCase()))) replies.push({ id: m[1], code: m[2] }); }
+    const cbLn = line("Codebook"), cbm = cbLn && /^\s*(.+?)\s+(C-[A-Z0-9]{3})\s*$/i.exec(cbLn), cb = cbm ? { roleName: cbm[1].trim(), code: cbm[2].toUpperCase() } : null;
     const vdLine = line("Verdicts"), verdicts = [];
     if (vdLine) { let m; VD_RE.lastIndex = 0; while ((m = VD_RE.exec(vdLine.toUpperCase()))) verdicts.push({ id: m[1], vd: { v: m[2] } }); }
     const refl = (text.split(/^\s*Decoded with Signal IDs from:.*$/mi)[1] || "").replace(/^\s*(Verdicts|Verdicts right|Interrogation score|Reply codes|Most surprising|Why)\s*:.*$/gmi, "").replace(/^\s*In my words\s*:\s*/mi, "");
@@ -63,7 +64,7 @@
       name: (head[1] || "").trim() || "(no name)", roleName: (head[2] || "").trim(),
       own: ownLine === null ? null : (ownLine.toUpperCase().match(ID_RE) || []),
       dec: decLine === null ? [] : (decLine.toUpperCase().match(ID_RE) || []),
-      decRaw: decLine, msgs, refl: refl.trim(), hasRefl: (/^\s*Most surprising\s*:/mi.test(text) && /^\s*Why\s*:/mi.test(text)) || refl.trim().length > 0, verdicts, hasVd: vdLine !== null, replies, hasRc: rcLine !== null
+      decRaw: decLine, msgs, refl: refl.trim(), hasRefl: (/^\s*Most surprising\s*:/mi.test(text) && /^\s*Why\s*:/mi.test(text)) || refl.trim().length > 0, verdicts, hasVd: vdLine !== null, cb, replies, hasRc: rcLine !== null
     };
   }
 
@@ -92,6 +93,10 @@
     if (bad.length) notes.push(`Not real Signal IDs: ${bad.join(", ")}.`);
     if (sub.decRaw === null) notes.push("No \"Decoded with Signal IDs from\" line.");
     if (sub.own && sub.dec.some((id) => sub.own.indexOf(id) >= 0)) warn.push("Lists their own Signal ID as a decoded classmate.");
+    // v11: a captured codebook covers one role, if its code was made by this student's own game
+    let cbRole = null;
+    if (sub.cb) { const cr = roleByName(sub.cb.roleName), real = cr && (sub.own || []).some((o) => L.parseSignal(o) && L.cbCode(o, cr.id) === sub.cb.code);
+      if (real) { cbRole = cr.id; if (!covered[cr.id]) covered[cr.id] = "codebook"; } else warn.push(`Codebook line that does not match this student (${sub.cb.code}): edited or copied, so it doesn't count.`); }
     const missing = D.ROLE_IDS.filter((r) => !covered[r]);
     if (missing.length) notes.push(`No Signal ID for: ${missing.map((r) => L.roleById(r).name).join(", ")}.`);
     // the six messages
@@ -106,7 +111,7 @@
     // Trust or Traitor: rescore every verdict from the Signal IDs (the student's own "Verdicts right" line is ignored)
     const vs = { n: 0, right: 0, list: [] };
     sub.verdicts.forEach((x) => { const p = L.parseSignal(x.id); if (!p || p.alleg == null || (sub.own || []).indexOf(x.id) >= 0) return; const s = L.verdictScore(p.alleg, x.vd); vs.n++; if (s.right) vs.right++; vs.list.push({ id: x.id, p, vd: x.vd, s }); });
-    return { rc, sub, role, covered, missing, right, notes, warn, ok, nRoles: D.ROLE_IDS.length - missing.length, vs };
+    return { rc, sub, role, covered, cbRole, missing, right, notes, warn, ok, nRoles: D.ROLE_IDS.length - missing.length, vs };
   }
 
   /* Cross-checks between students: shared own Signal IDs, identical reflections. */
@@ -156,7 +161,7 @@
       const c = padCount(r.sub), nRep = c ? c.found : r.rc.good.length, own = (r.sub.own || []), card = padCards ? own.some((id) => padCards[id]) : null;
       const st = [
         { k: "Card posted", ok: card, txt: card == null ? "Card: add Padlet file" : card ? "Card posted" : "No card on Padlet" },
-        { k: "4 roles decoded", ok: !r.missing.filter((x) => !r.covered[x]).length && r.nRoles === 5, txt: r.nRoles === 5 ? "4 roles decoded" : `Roles: ${Math.max(0, r.nRoles - 1)} of 4` },
+        { k: "4 roles decoded", ok: !r.missing.filter((x) => !r.covered[x]).length && r.nRoles === 5, txt: r.nRoles === 5 ? (r.covered[r.cbRole] === "codebook" ? "3 roles + codebook" : "4 roles decoded") : `Roles: ${Math.max(0, r.nRoles - 1)} of 4${r.covered[r.cbRole] === "codebook" ? " (with codebook)" : ""}` },
         { k: "2 replies", ok: nRep >= 2, txt: nRep >= 2 ? `${nRep} replies${c ? "" : " (listed)"}` : `Replies: ${nRep} of 2${c ? " on Padlet" : ""}` },
         { k: "6 messages", ok: r.right === 6, txt: r.right === 6 ? "6 messages" : `Messages: ${r.right} of 6` },
         { k: "Reflection", ok: !!r.sub.hasRefl, txt: r.sub.hasRefl ? "Reflection" : "No reflection" }];

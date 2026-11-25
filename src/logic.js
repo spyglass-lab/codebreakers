@@ -128,6 +128,8 @@ const Logic = (function () {
   /* Signal IDs used on the class Padlet's example card: they show what a card looks like but never count as a classmate. */
   const EXAMPLE_IDS = ["BP-ACCBCC-RV"];
   const isExample = (id) => EXAMPLE_IDS.indexOf(String(id || "").toUpperCase()) >= 0;
-  return { EXAMPLE_IDS, isExample, sealCode, readSeal, sealCheck, readCheck, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
+  /* v11: captured codebook. "C-" + 3 characters from the student's own Signal ID and the unlocked role, checked by Teacher Check. */
+  function cbCode(own, roleId) { const s = h32(String(own).toUpperCase() + "#CB#" + roleId); return "C-" + ALPHA[s % 32] + ALPHA[(s >> 5) % 32] + ALPHA[h32(roleId + "!" + s) % 32]; }
+  return { cbCode, EXAMPLE_IDS, isExample, sealCode, readSeal, sealCheck, readCheck, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
 })();
 if (typeof module !== "undefined") module.exports = Logic;

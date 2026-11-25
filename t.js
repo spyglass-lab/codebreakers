@@ -7,12 +7,15 @@ const { chromium } = require('playwright'); const L = require('./src/logic.js');
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push('PAGEERR ' + e.message)); p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|fonts/.test(m.text())) errs.push('CONSOLE ' + m.text()); });
   await p.goto('file://' + process.cwd() + '/dist/test.html'); await p.waitForTimeout(400); await p.screenshot({ path: `shots/${mode}-title.png`, fullPage: true });
   await p.click('#start'); await p.click(`.rolecard[data-r="${role}"]`); await p.fill('#cname', 'Marta'); await p.screenshot({ path: `shots/${mode}-pick.png`, fullPage: true }); await p.click('#begin');
+  let cbSeen = 0;
   for (let r = 0; r < 6; r++) {
+    { const cf = await p.$('#cbfind'); if (cf) { cbSeen++; if (r < 1 || r > 4) errs.push('CODEBOOK in round ' + (r + 1)); await cf.click(); await p.waitForSelector('.cbpaper'); await p.screenshot({ path: `shots/${mode}-codebook.png`, fullPage: true }); } }
     await p.click('#next'); if (r === 0) await p.screenshot({ path: `shots/${mode}-brief.png`, fullPage: true });
     { const k = L.shiftFor(role, r); for (let i = 0; i < k; i++) await p.click('#dp'); }
     await p.waitForSelector('.mitem'); if (r === 0) await p.screenshot({ path: `shots/${mode}-work.png`, fullPage: true });
     await p.keyboard.press(picks[r].toLowerCase()); if(r===0) await p.screenshot({ path: `shots/${mode}-selected.png`, fullPage: true }); await p.click('#send'); await p.waitForSelector('#next',{state:'attached'}); if (r === 0) await p.screenshot({ path: `shots/${mode}-outcome.png`, fullPage: true }); await p.click('#next');
   }
+  { const bd = await p.evaluate(() => JSON.parse(localStorage.getItem('cb_board'))); if (cbSeen !== 1 || !bd.cb || bd.cb.role === role || !DATA.ROLES.some((x) => x.id === bd.cb.role)) errs.push('CODEBOOK not found once: seen ' + cbSeen + ' ' + JSON.stringify(bd.cb)); }
   // 1945 epilogue, then Trust or Traitor: choose the secret allegiance
   await p.waitForSelector('#epinext'); if (!/1945/.test(await p.textContent('main'))) errs.push('EPILOGUE missing 1945'); await p.screenshot({ path: `shots/${mode}-epilogue.png`, fullPage: true }); await p.click('#epinext');
   await p.waitForSelector('[data-al]');
@@ -44,7 +47,7 @@ const { chromium } = require('playwright'); const L = require('./src/logic.js');
   if (!/Report 2, Proven wrong/.test(await p.innerText('#ichk'))) errs.push('CHECK not shown after sealing');
   if (!(await p.inputValue('#rtext')).includes('SEAL ' + L.sealCheck(id, sid, 1, { r: 1, m: 'W' }))) errs.push('REPLY seal does not carry the check');
   if (!/Reply copied \(1 of 2\)/.test(await p.textContent('#rmsg'))) errs.push('ONE CLICK did not copy the reply: ' + await p.textContent('#rmsg'));
-  { const nd = await p.innerText('#need'); if (!/Replies: 1 of 2 done/.test(nd) || !/Still needed:/.test(nd) || nd.includes(L.roleById(o).name)) errs.push('NEED line wrong after first decode: ' + nd); }
+  { const nd = await p.innerText('#need'); if (!/Replies: 1 of 2 done/.test(nd) || !/Still needed:/.test(nd) || (await p.innerText('#need p:first-child')).includes(L.roleById(o).name)) errs.push('NEED line wrong after first decode: ' + nd); }
   if (!(await p.isVisible('#cprep'))) errs.push('reply block hidden after verdict'); if (!(await p.isVisible('#rtext'))) errs.push('See or change your reply is not open by default');
   { const rt = await p.inputValue('#rtext'), r = +(await p.inputValue('#rr')); const me = L.parseSignal(id).picks[r].label, them = L.parseSignal(sid).picks[r].label; if (me === them && L.parseSignal(id).picks.some((x, i) => x.label !== L.parseSignal(sid).picks[i].label)) errs.push('AUTO ROUND picked a round with the same choice'); if (!rt.includes('ROUND ' + (r + 1))) errs.push('reply round mismatch'); if (/QUESTION/.test(rt) || await p.$('#rq')) errs.push('REPLY still has a question'); }
   { const rt = await p.inputValue('#rtext'); if (!rt.includes('SEAL ' + L.sealCode(id, sid, 1))) errs.push('REPLY has no matching SEAL:\n' + rt); } await p.waitForSelector('.vfiled'); await p.screenshot({ path: `shots/${mode}-decoded.png`, fullPage: true });
