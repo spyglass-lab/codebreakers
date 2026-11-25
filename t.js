@@ -25,7 +25,7 @@ const { chromium } = require('playwright'); const L = require('./src/logic.js');
   if (!post.includes('SIGNAL ID: ' + id)) errs.push('POST has no Signal ID');
   DATA.INTEL[role].forEach((x) => [x.truth, x.fake, x.third].forEach((w) => { if (post.includes(x.t.replace('{X}', w))) errs.push('POST leaks a report: ' + w); }));
   if (/Secrecy \d|Badges:|Score \d/.test(post)) errs.push('POST repeats card details');
-  await p.selectOption('#qsel2', '4'); if (!/QUESTIONS FOR YOU\n1\. .+\n2\. /.test(await p.inputValue('#ptext'))) errs.push('second question not added');
+  if (/QUESTION|#qsel/.test(await p.inputValue('#ptext')) || await p.$('#qsel')) errs.push('POST still has questions');
   await p.screenshot({ path: `shots/${mode}-end.png`, fullPage: true });
   // decode another role (a double agent who falsified report 2), use the Archive, interrogate
   const o = role === 'NV' ? 'BP' : 'NV'; const S = L.newState(L.roleById(o), 'x'); for (let r = 0; r < 6; r++) { S.i = r; L.choose(S, r % 3); } S.alg = { v: 2, r: 5 }; const sid = L.signalId(S);

@@ -2710,13 +2710,10 @@ const RECMAPS = (function () {
       <section class="decoder"><h2>Decode a classmate</h2><p>Find a classmate's Padlet card from a different role. Copy their whole post and paste it here. You will see their choices and unlock their pieces of the messages.</p>${decoderForm()}</section>
       <section class="padlet"><h2>Post to Padlet</h2><p>One button copies your card image and your post text together. In your role's column on the Padlet, click + and <b>paste twice</b>: the first paste adds your card, then click in the text box and paste again for your post text. Then decode classmates from other roles by pasting their posts into the Decoder board, and reply to 2 of them.</p><p class="small"><b>Come back later:</b> every reply on your card has a SEAL code. Paste the replies into <b>Who trusted you?</b> on the Decoder board to see what your classmates decided.</p>
         <div class="cardwrap" id="cardsvg">${cardSVG()}</div>
-        <div class="field"><label for="qsel">Question for your classmates</label><select id="qsel">${postQs(role, e).map((q, i) => `<option value="${i}">${esc(clip(q, 100))}</option>`).join("")}</select></div>
-        <div class="field"><label for="qsel2">Second question (optional)</label><select id="qsel2"><option value="-1">No second question</option>${postQs(role, e).map((q, i) => `<option value="${i}">${esc(clip(q, 100))}</option>`).join("")}</select></div>
         <div class="field"><label for="ptext">Post text (edit it so it sounds like you)</label><textarea id="ptext" rows="12"></textarea></div><div class="row"><button class="btn" id="cpboth">Copy card and text for Padlet</button></div><p class="small cmsg" id="pmsg" role="status"></p>
         <details class="rmore"><summary>Copy them one at a time instead</summary><div class="row"><button class="mini" id="cptext">Copy post text only</button><button class="mini" id="cpimg">Copy card image only</button><button class="mini" id="dl">Download card image</button></div></details>
         <div class="row"><button class="btn ghost" id="again">Play another role</button></div></section></main>`;
-    const qs = postQs(role, e), paint = () => { const a = +$("#qsel").value, b2 = +$("#qsel2").value; $("#ptext").value = cardText([qs[a]].concat(b2 >= 0 && b2 !== a ? [qs[b2]] : [])); };
-    $("#qsel").addEventListener("change", paint); $("#qsel2").addEventListener("change", paint); paint();
+    $("#ptext").value = cardText();
     $("#cptext").addEventListener("click", () => { const m = $("#pmsg"), t = $("#ptext").value, ok = () => { m.textContent = "Post text copied. Paste it into your Padlet post."; }; if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, () => { m.textContent = "Select the post text and press Ctrl+C (Cmd+C on a Mac)."; }); });
     $("#cpboth").addEventListener("click", copyBoth);
     $("#again").addEventListener("click", () => { store.set("cb_game", null); S = null; picked = null; go("pick"); });
@@ -2726,14 +2723,14 @@ const RECMAPS = (function () {
   function badgesHTML() {
     const b = L.badges(S); return `<section class="badges"><h2>Badges earned</h2><ul class="bdg">${b.got.map((x) => `<li><span class="medal" aria-hidden="true">${x.icon}</span><span><b>${esc(x.name)}</b><small>${esc(x.why)}</small></span></li>`).join("")}</ul><p class="small">${b.got.length} of ${b.total} badges. Play a different role to earn more.</p></section>`;
   }
-  /* Questions a student can put in their post: their role's own three, their ending's question, then general ones. */
+  /* (v11: post questions removed at the teacher's request; kept here unused in case they come back.) */
   const POST_QS = ["Which of your decisions would you change now, and why?", "Was keeping the secret worth what it cost? Why or why not?", "What would have happened if the enemy had found out your secret?", "Which real person from your role would you most like to meet, and why?", "What surprised you most about your role's part of the war?", "Which round was the hardest call for you, and why?"];
   const postQs = (role, e) => role.qs.concat([e.ask], POST_QS);
   /* Padlet post text. Name, role, ending, score, gauges and badges are already on the card image, so the text carries only what the
-     image can't: the Signal ID to copy, the questions, and the intel reports, which stay classified until a classmate decodes the ID. */
-  function cardText(qList) {
+     image can't: the Signal ID to copy and the intel reports, which stay classified until a classmate decodes the ID. No questions (teacher, 2026-11-25: keep posts compact). */
+  function cardText() {
     const L1 = "━━━━━━━━━━━━━━━━━━━━", BAR = "████████████████████";
-    return [`SIGNAL ID: ${S.ended.id}`, L1, qList.length > 1 ? "QUESTIONS FOR YOU" : "QUESTION FOR YOU", ...qList.map((q, i) => (qList.length > 1 ? `${i + 1}. ` : "") + q), L1, "INTEL REPORTS FROM MY FRONT (CLASSIFIED)", `1. ${BAR}`, `2. ${BAR.slice(3)}`, `3. ${BAR.slice(1)}`, "Decode my Signal ID to read my reports. Trust me, or call me a traitor?", L1, "Decode my Signal ID in Codebreakers: The Hidden War, then reply with DECODED and my ID.", "#NeedToKnow"].join("\n");
+    return [`SIGNAL ID: ${S.ended.id}`, L1, "INTEL REPORTS FROM MY FRONT (CLASSIFIED)", `1. ${BAR}`, `2. ${BAR.slice(3)}`, `3. ${BAR.slice(1)}`, "Decode my Signal ID to read my reports. Trust me, or call me a traitor?", "#NeedToKnow"].join("\n");
   }
   /* The name sits between the portrait (x 206) and the tilted ending stamp (from about x 405), so long names shrink to fit. */
   const nameSize = (n) => Math.max(14, Math.min(30, Math.floor(196 / (n.length * 0.62))));
