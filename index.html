@@ -440,12 +440,13 @@ svg.portrait, svg.scene { image-rendering: pixelated; shape-rendering: crispEdge
 .chkfile { margin: 8px 0; padding: 8px 12px; background: rgba(0, 0, 0, .05); border-left: 4px solid #8a8878; } .chkfile .src { margin: 0 0 4px; }
 .chklist { margin: 4px 0 6px 18px; padding: 0; }
 
-/* ---------- v11: the captured codebook (a small folded corner in one round's Real History box) ---------- */
-.rec .recbody { position: relative; }
-.cbfind { position: absolute; right: -2px; bottom: -2px; width: 46px; height: 46px; padding: 0; border: 0; cursor: pointer; background: linear-gradient(135deg, transparent 50%, #c9a24a 50%, #a8832f 100%); opacity: .55; transition: opacity .3s; }
-.cbfind span { position: absolute; right: 2px; bottom: 4px; font: 700 7px/1 var(--mono); letter-spacing: .08em; color: #3a2a0c; transform: rotate(-45deg); transform-origin: right bottom; }
-.cbfind:hover, .cbfind:focus-visible { opacity: 1; } .cbfind:focus-visible { outline: 3px solid var(--focus); }
-@media (prefers-reduced-motion: no-preference) { .cbfind { animation: cbglint 4s ease-in-out infinite; } @keyframes cbglint { 0%, 80%, 100% { opacity: .5; } 90% { opacity: .95; } } }
+/* ---------- v11: the captured codebook: a small folder hidden on the animation or the Real History map ---------- */
+.recimg { position: relative; }
+.cbfind { position: absolute; z-index: 3; width: 34px; height: 26px; padding: 0; border: 0; background: none; cursor: pointer; opacity: .82; filter: drop-shadow(1px 1px 0 rgba(0,0,0,.6)); transform: rotate(-8deg); }
+.cbfind svg { display: block; width: 100%; height: 100%; }
+.cbfind:hover, .cbfind:focus-visible { opacity: 1; transform: rotate(-8deg) scale(1.15); } .cbfind:focus-visible { outline: 3px solid var(--focus); }
+@media (prefers-reduced-motion: no-preference) { .cbfind { animation: cbglint 5s ease-in-out infinite; } @keyframes cbglint { 0%, 85%, 100% { filter: drop-shadow(1px 1px 0 rgba(0,0,0,.6)); } 92% { filter: drop-shadow(0 0 6px #ffe08a); } } }
+@media (max-width: 560px) { .cbfind { width: 28px; height: 22px; } }
 .cbpaper { margin: 12px 0; border-left: 4px solid #a8832f; }
 
 </style>
@@ -2441,7 +2442,7 @@ const RECMAPS = (function () {
   function swapScene(box) {
     if (!CAN_SWAP || !box) return; const slot = box.dataset.scene; if (FOUND["scene-" + slot] === false) return;
     const tryExt = (list) => { if (!list.length) { FOUND["scene-" + slot] = false; return; } const im = new Image(), src = `images/scene-${slot}.${list[0]}`;
-      im.onload = () => { FOUND["scene-" + slot] = src; box.innerHTML = `<img class="sceneimg" src="${src}" alt="">`; }; im.onerror = () => tryExt(list.slice(1)); im.src = src; };
+      im.onload = () => { FOUND["scene-" + slot] = src; box.innerHTML = `<img class="sceneimg" src="${src}" alt="">`; if (view === "round" && !$("#cbfind")) placeFolder(); }; im.onerror = () => tryExt(list.slice(1)); im.src = src; };
     if (FOUND["scene-" + slot]) { box.innerHTML = `<img class="sceneimg" src="${FOUND["scene-" + slot]}" alt="">`; return; } tryExt(["gif", "png"]);
   }
   /* Padlet card look for each ending: accent colour, darker frame colour, and the stamp word. */
@@ -2564,7 +2565,7 @@ const RECMAPS = (function () {
       cbAssign();
       const prevK = S.i > 0 && S.log[S.i - 1] ? S.log[S.i - 1].kind : null, prevOff = S.i > 0 && D.ROLE_HIST[role.id][S.i - 1], ec = !prevK ? null : prevOff ? { t: D.ECHO_GENERIC[prevK] } : D.ECHO[S.i] ? D.ECHO[S.i][prevK] : null;
       body = `${ec ? `<aside class="echo" aria-label="Your war so far"><span class="echost">YOUR WAR SO FAR</span><p class="echok">Because of your orders in round ${S.i}: ${esc(rTitle(role.id, S.i - 1))}</p><p class="echot">${esc(ec.t)}</p>${ec.real ? `<p class="echor"><b>Real history:</b> ${esc(ec.real)}</p>` : ""}</aside>` : ""}<div class="hero-art small" data-scene="${imgSlot}">${ART.scene(sc ? sc.scene : rd.scene)}</div>${timelineStrip(S.i, sc)}<div class="paper">${(sc ? sc.sitrep : rd.sitrep).map((p) => `<p>${esc(p)}</p>`).join("")}${sc && D.MEANWHILE[S.i] ? `<p class="meanwhile">${esc(D.MEANWHILE[S.i])}</p>` : ""}</div>
-        <aside class="rec" aria-label="From the record"><span class="recst">REAL HISTORY</span><div class="recbody">${sc ? `<p class="reck">FROM THE RECORD · ${esc(hist.label)}</p><p class="rect">${esc(hist.t)}</p>` : `<p class="reck">FROM THE RECORD · ${esc(D.REC[S.i].label)}</p><p class="rect">${esc(D.REC[S.i].text)}</p>${hist ? `<div class="recrole"><p class="reck">ON YOUR FRONT · ${esc(hist.label)}</p><p class="rect">${esc(hist.t)}</p></div>` : ""}`}<p class="recf">This really happened. Keep it in mind when you choose your orders.</p>${cbHere() ? `<button class="cbfind" id="cbfind" aria-label="Something is tucked behind this file. Pull it out."><span aria-hidden="true">CAPTURED</span></button>` : ""}</div>${IMG_BUILTIN[imgSlot] || CAN_SWAP ? `<figure class="recimg"><button class="zoombtn" id="zoom" aria-label="Enlarge the image: ${esc(recLabel)}"><img data-slot="${imgSlot}" src="${imgSrc(imgSlot)}" onload="__imgOk(this)" onerror="__imgNext(this)" alt="Illustration: ${esc(recLabel)}"><span class="zoomhint" aria-hidden="true">⤢ Click to enlarge</span></button></figure>` : `<figure class="recmap">${ART.map(S.i)}<figcaption>Sketch map, not to scale</figcaption></figure>`}</aside>
+        <aside class="rec" aria-label="From the record"><span class="recst">REAL HISTORY</span><div class="recbody">${sc ? `<p class="reck">FROM THE RECORD · ${esc(hist.label)}</p><p class="rect">${esc(hist.t)}</p>` : `<p class="reck">FROM THE RECORD · ${esc(D.REC[S.i].label)}</p><p class="rect">${esc(D.REC[S.i].text)}</p>${hist ? `<div class="recrole"><p class="reck">ON YOUR FRONT · ${esc(hist.label)}</p><p class="rect">${esc(hist.t)}</p></div>` : ""}`}<p class="recf">This really happened. Keep it in mind when you choose your orders.</p></div>${IMG_BUILTIN[imgSlot] || CAN_SWAP ? `<figure class="recimg"><button class="zoombtn" id="zoom" aria-label="Enlarge the image: ${esc(recLabel)}"><img data-slot="${imgSlot}" src="${imgSrc(imgSlot)}" onload="__imgOk(this)" onerror="__imgNext(this)" alt="Illustration: ${esc(recLabel)}"><span class="zoomhint" aria-hidden="true">⤢ Click to enlarge</span></button></figure>` : `<figure class="recmap">${ART.map(S.i)}<figcaption>Sketch map, not to scale</figcaption></figure>`}</aside>
         <div id="cbbox"></div><p class="eq"><b>Essential question</b> ${esc(rd.eq)}</p><div class="terms">${rd.terms.map((t) => `<p><b>${esc(t.t)}.</b> ${esc(t.d)}</p>`).join("")}</div>
         ${S.i === 0 ? `<p class="gauge-help">Your three gauges: <b>Secrecy</b> (does the enemy still trust its codes?), <b>Impact</b> (did your intelligence change events?) and <b>Trust</b> (do your colleagues still rely on you?). Strong careers need all three.</p>` : ""}
         <div class="row"><button class="btn" id="next">Open your envelope</button></div>`;
@@ -2594,7 +2595,7 @@ const RECMAPS = (function () {
     root.innerHTML = topbar() + `<main class="wrap">${hud()}${head}${steps(cur)}<div class="obj" role="note"><span>OBJECTIVE</span><p id="objt">${esc(obj)}</p></div>${body}</main>`;
     if (stage === "brief") { const nowEl = $(".tl .now"); if (nowEl) nowEl.parentNode.scrollLeft = Math.max(0, nowEl.offsetLeft - 60); }
     if (stage === "brief") { const zb = $("#zoom"); if (zb) zb.addEventListener("click", () => { const im = zb.querySelector("img"); openZoom(im.currentSrc || im.src, recLabel, zb); }); swapScene($(".hero-art.small")); }
-    if (stage === "brief") { const cf = $("#cbfind"); if (cf) cf.addEventListener("click", () => { cf.remove(); cbFind(); const cbx = $("#cbbox"); if (cbx) cbx.scrollIntoView({ block: "nearest" }); }); }
+    if (stage === "brief") placeFolder();
     if (stage === "brief") { const go1 = () => typeIn(); if (titleCard) { titleCard = false; showTitleCard(go1); } else go1(); }
     if (stage === "outcome") { const lg = S.log[S.log.length - 1], st = STAMPS[lg.kind] || ["FILED", "calm"], pp = $(".paper"); if (pp) { pp.classList.add("outc"); const sp = document.createElement("span"); sp.className = "dstamp"; sp.dataset.tone = st[1]; sp.textContent = st[0]; pp.appendChild(sp); if (!noFx()) { pp.classList.add("pre"); setTimeout(() => { pp.classList.remove("pre"); sp.classList.add("slam"); pp.classList.add("thump"); sfx("slam"); }, 650); } } }
     if (stage === "brief") $("#next").addEventListener("click", () => { stage = "work"; solved = false; chosen = null; render(); window.scrollTo(0, 0); });
@@ -2858,6 +2859,16 @@ const RECMAPS = (function () {
     UL: { t: "Papers from Rommel's listening unit", d: "10 July 1942, Tel el Eisa, Egypt. Australian troops captured Rommel's radio-intercept company and its papers, which showed how much the Germans had learned from careless British radio talk. In your hands, they open the Ultra liaison officers' files." }
   };
   function cbAssign() { if (!S || S.cb) return; const others = D.ROLES.map((x) => x.id).filter((id) => id !== S.role.id); S.cb = { r: 1 + Math.floor(Math.random() * 4), role: others[Math.floor(Math.random() * others.length)] }; }
+  /* v11: the codebook is a small manila folder hidden on the round's animation or its Real History map, at a random spot (kept clear of the "Click to enlarge" label). */
+  function cbSpot() { if (!S.cb.spot) S.cb.spot = { on: Math.random() < .5 ? "scene" : "map", x: 6 + Math.floor(Math.random() * 62), y: 10 + Math.floor(Math.random() * 55) }; return S.cb.spot; }
+  const CB_FOLDER = `<svg viewBox="0 0 32 24" aria-hidden="true" shape-rendering="crispEdges"><path d="M1 4h11l2 3h17v16H1z" fill="#9a7a2e"/><path d="M1 8h30v15H1z" fill="#d6b25e"/><path d="M1 8h30v2H1z" fill="#e8cc82"/><path d="M4 14h14v3H4z" fill="#a3322b"/><path d="M1 22h30v1H1z" fill="#7a5f20"/></svg>`;
+  function placeFolder() {
+    if (!cbHere()) return; const sp = cbSpot(), fig = $("figure.recimg"), host = sp.on === "map" && fig ? fig : $(".hero-art.small") || fig; if (!host) return;
+    const f = document.createElement("button"); f.className = "cbfind"; f.id = "cbfind"; f.type = "button"; f.setAttribute("aria-label", "A captured folder is hidden here. Open it.");
+    f.style.left = sp.x + "%"; f.style.top = sp.y + "%"; f.innerHTML = CB_FOLDER;
+    f.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); f.remove(); cbFind(); const cbx = $("#cbbox"); if (cbx) cbx.scrollIntoView({ block: "nearest" }); });
+    host.appendChild(f);
+  }
   const cbHere = () => S && S.cb && S.i === S.cb.r && !board().cb;
   function cbFind() {
     const b = board(); if (b.cb) return; b.cb = { role: S.cb.role, from: S.role.id }; store.set("cb_board", b); saveGame(false);
