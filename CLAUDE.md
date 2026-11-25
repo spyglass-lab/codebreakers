@@ -350,3 +350,4 @@ Teacher: random easter-egg help so students decode 3 roles, not 4; "hidden find 
 - **One per student, ever:** once `cb_board.cb` exists, no codebook appears in any later game. Clearing the board keeps it (like verdicts).
 - Submission: `Codebook: <role name> C-XXX` (`L.cbCode(ownId, roleId)`). Teacher Check covers that role only if the code matches one of the student's own Signal IDs; otherwise a warning. Steps shows "3 roles + codebook".
 - **History (NEEDS TEACHER PROOFREAD):** U-110 (9 May 1941, HMS Bulldog; BP), Japanese submarine I-1 (January 1943, run aground at Guadalcanal by HMNZS Kiwi and Moa, codebooks recovered; NV), René Duchez's Atlantic Wall map (Caen, May 1942; FA), German agents' codes reaching MI5 through double agents (MI), capture of Rommel's radio-intercept company at Tel el Eisa (10 July 1942, Australian troops; UL).
+- Codebook released into v11 in place (2026-11-25, teacher: "Yes, update v11").
