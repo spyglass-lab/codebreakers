@@ -352,3 +352,4 @@ Teacher: random easter-egg help so students decode 3 roles, not 4; "hidden find 
 - **History (NEEDS TEACHER PROOFREAD):** U-110 (9 May 1941, HMS Bulldog; BP), Japanese submarine I-1 (January 1943, run aground at Guadalcanal by HMNZS Kiwi and Moa, codebooks recovered; NV), René Duchez's Atlantic Wall map (Caen, May 1942; FA), German agents' codes reaching MI5 through double agents (MI), capture of Rommel's radio-intercept company at Tel el Eisa (10 July 1942, Australian troops; UL).
 - Codebook released into v11 in place (2026-11-25, teacher: "Yes, update v11").
 - Briefing slide "How a round works" tells students to keep their eyes open for a hidden folder (teacher request).
+- Hidden folder released into v11 in place (2026-11-25, teacher: "Yes, update v11").
