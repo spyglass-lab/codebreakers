@@ -161,13 +161,20 @@ a.btn { display: inline-block; text-decoration: none; } .btn:focus-visible, a:fo
 .plan ol { margin: 6px 0 0; padding-left: 22px; } .share { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; } .share p { margin: 0; }
 .more { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 12px; } .more > summary { cursor: pointer; font-weight: 700; color: var(--gold); padding: 6px 0; } .more[open] > summary { margin-bottom: 8px; }
 
+/* v11: Padlet export file picker */
+.padin { border: 2px dashed var(--gold); padding: 4px 16px 10px; margin: 18px 0; }
+.filebtn { display: inline-block; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.padin .row:focus-within .filebtn { outline: 2px solid var(--ink); outline-offset: 2px; }
+.padres { padding: 10px 14px; margin: 10px 0 0; border-left: 4px solid var(--dim); background: var(--panel); } .padres.good { border-color: var(--green); } .padres.bad { border-color: var(--red); } .padres.wait { border-color: var(--gold); }
+
 </style></head><body><main class="wrap"><h1>CODEBREAKERS · TEACHER CHECK</h1>
 <p class="lead">Check students' private submissions. Every Signal ID is tested, so you can see who really decoded classmates from all five roles. Nothing you paste here is saved or sent anywhere.</p>
-<section class="how"><ol><li>Copy one or more submissions (each starts with <b>MISSION COMPLETE</b>) and paste them all into the box. They can be one after another.</li><li>Press <b>Check</b>. Each student gets one row: whether they are done, how many classmates they decoded, how many replies they posted, how many classmates decoded them, and anything to look at.</li><li>Use <b>Copy for a spreadsheet</b> if you want the table elsewhere. Full details, Trust or Traitor and the Unmasking are under the table, closed until you open them.</li></ol></section>
+<section class="how"><ol><li>Copy one or more submissions (each starts with <b>MISSION COMPLETE</b>) and paste them all into the box. They can be one after another.</li><li>Press <b>Check</b>. Each student gets one row: whether they are done, how many classmates they decoded, how many replies they posted, how many classmates decoded them, and anything to look at.</li><li>Use <b>Copy for a spreadsheet</b> if you want the table elsewhere. Full details, Trust or Traitor and the Unmasking are under the table, closed until you open them.</li><li><b>Optional, to see which replies are really on the Padlet:</b> in Padlet, open <b>Share</b>, then <b>Export</b>, and save the board as a spreadsheet (Excel). Then click <b>Choose the Padlet file</b> under <a href="#padin">Replies on the Padlet</a>, below the Check button.</li></ol></section>
 <h2>SUBMISSIONS</h2><label class="small" for="subs">Paste submissions here</label><textarea id="subs" spellcheck="false" placeholder="MISSION COMPLETE · ..."></textarea>
 <div class="row"><button class="btn" id="go">Check</button><button class="btn ghost" id="clear">Clear</button></div>
-<section class="padin"><h2>REPLIES ON THE PADLET (OPTIONAL)</h2><p class="small">Skip searching the Padlet by hand. In Padlet, open <b>Share</b>, then <b>Export</b>, and save the board as a spreadsheet (Excel) or CSV. Then choose that file here. It is read on this computer only; nothing is uploaded. Each student's <b>Replies</b> column then counts the replies really found on the Padlet.</p>
-<div class="row"><label class="small" for="pfile">Padlet export file</label><input type="file" id="pfile" accept=".xlsx,.csv,.md,.txt,.html"><button class="btn ghost" id="padclear">Forget the Padlet file</button></div>
+<section class="padin" id="padin"><h2>REPLIES ON THE PADLET (OPTIONAL)</h2><p class="small">Skip searching the Padlet by hand. In Padlet, open <b>Share</b>, then <b>Export</b>, and save the board as a spreadsheet (Excel) or CSV. Then choose that file here. It is read on this computer only; nothing is uploaded. Each student's <b>Replies</b> column then counts the replies really found on the Padlet.</p>
+<div class="row"><label class="btn filebtn" for="pfile">Choose the Padlet file</label><input type="file" id="pfile" class="sr" accept=".xlsx,.csv,.md,.txt,.html"><button class="btn ghost" id="padclear">Forget the Padlet file</button></div>
 <details><summary class="small">Or paste text copied from the Padlet</summary><textarea id="ptxt" spellcheck="false" rows="4"></textarea><div class="row"><button class="btn ghost" id="padgo">Read pasted text</button></div></details>
 <p class="small" id="padmsg" role="status"></p></section>
 <div id="out" aria-live="polite"></div>
@@ -707,10 +714,13 @@ if (typeof module !== "undefined") module.exports = Logic;
     const listed = (sub.replies || []).filter((x) => own.some((o) => L.proofCode(o, x.id) === x.code)), missing = listed.filter((x) => !found[x.id]).length;
     return { found: Object.keys(found).length, missing };
   }
+  /* A clear result box, so choosing the file visibly does something even before any submissions are checked. */
+  function padStatus(kind, html) { const m = $("#padmsg"); if (!m) return; m.className = "padres " + kind; m.innerHTML = html; }
   function setPadlet(text, label) {
-    padPairs = scanPadlet(text); const n = Object.keys(padPairs).length, m = $("#padmsg");
-    if (m) m.textContent = n ? `Read ${label}: ${n} game repl${n === 1 ? "y" : "ies"} found on the Padlet.` : `Read ${label}, but found no game replies in it. Use Padlet's Excel export (it includes comments), or check that students pasted the replies the game wrote.`;
-    if ($("#out").innerHTML) run();
+    padPairs = scanPadlet(text); const n = Object.keys(padPairs).length, subs = $("#subs").value.trim();
+    if (!n) { padPairs = null; padStatus("bad", `<b>No game replies found in ${esc(label)}.</b> The file had ${Math.round(String(text).length / 1000)}k characters of text, but no reply starting with DECODED and a PROOF code. Try Padlet's other export format (Excel or CSV), or open a card on the Padlet, select its comments, copy them and paste them under <i>Or paste text copied from the Padlet</i>.`); return; }
+    padStatus("good", `<b>✓ Found ${n} game repl${n === 1 ? "y" : "ies"} on the Padlet</b> in ${esc(label)}.<br>${subs ? "The <b>Replies found on Padlet</b> column in the table below now uses this file." : "Next: paste the students' submissions in the box above and press <b>Check</b>. The <b>Replies found on Padlet</b> column will show each student's replies."}`);
+    if (subs) { run(); const t = $("#out table.simple"); if (t) t.scrollIntoView({ block: "start", behavior: "smooth" }); }
   }
 
   /* Read one submission's text into its parts. */
@@ -850,12 +860,16 @@ if (typeof module !== "undefined") module.exports = Logic;
 
   $("#go").addEventListener("click", run);
   $("#pfile").addEventListener("change", async (e) => {
-    const f = e.target.files && e.target.files[0]; if (!f) return; const m = $("#padmsg");
-    try { const buf = await f.arrayBuffer(), zip = new Uint8Array(buf, 0, 2); setPadlet(zip[0] === 0x50 && zip[1] === 0x4b ? await unzipText(buf) : new TextDecoder().decode(buf), f.name); }
-    catch (err) { m.textContent = "Could not read that file. Try Padlet's Excel or CSV export, or paste the Padlet text instead."; }
+    const f = e.target.files && e.target.files[0]; if (!f) return; padStatus("wait", `Reading ${esc(f.name)}…`);
+    try {
+      const buf = await f.arrayBuffer(), zip = new Uint8Array(buf, 0, Math.min(2, buf.byteLength)), isZip = zip[0] === 0x50 && zip[1] === 0x4b;
+      const text = isZip ? await Promise.race([unzipText(buf), new Promise((res, rej) => setTimeout(() => rej(new Error("timeout")), 15000))]) : new TextDecoder().decode(buf);
+      setPadlet(text, f.name);
+    } catch (err) { padStatus("bad", `<b>Could not read ${esc(f.name)}.</b> Try Padlet's CSV export instead, or paste text copied from the Padlet below. (${esc(err && err.message || "error")})`); }
+    e.target.value = "";
   });
   $("#padgo").addEventListener("click", () => { const t = $("#ptxt").value; if (t.trim()) setPadlet(t, "the pasted text"); });
-  $("#padclear").addEventListener("click", () => { padPairs = null; $("#pfile").value = ""; $("#ptxt").value = ""; $("#padmsg").textContent = ""; if ($("#out").innerHTML) run(); });
+  $("#padclear").addEventListener("click", () => { padPairs = null; $("#pfile").value = ""; $("#ptxt").value = ""; const m = $("#padmsg"); m.className = "small"; m.textContent = ""; if ($("#out").innerHTML) run(); });
   $("#clear").addEventListener("click", () => { $("#subs").value = ""; $("#out").innerHTML = ""; });
   $("#onego").addEventListener("click", look); $("#one").addEventListener("keydown", (e) => { if (e.key === "Enter") look(); });
 })();
