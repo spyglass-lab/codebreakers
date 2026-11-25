@@ -107,13 +107,24 @@ const Logic = (function () {
     const c1 = ALPHA[s % 32], c2 = ALPHA[(h32(T + c1) % 32 + (v ? 16 : 0) + ((s >> 5) % 16)) % 32];
     return c1 + c2 + ALPHA[h32(T + c1 + c2 + "!") % 32];
   }
+  /* v10: an optional Archive check adds a 4th character: k = report (0-2) * 3 + result (B backed up, W proven wrong, N can't tell). */
+  const CHK = "BWN";
+  function sealCheck(own, target, v, c) {
+    const base = sealCode(own, target, v); if (!c || c.r == null || CHK.indexOf(c.m) < 0) return base;
+    const T = String(target).toUpperCase(); return base + ALPHA[(h32(T + base + "?") + c.r * 3 + CHK.indexOf(c.m)) % 32];
+  }
+  /* The check inside a 4-character seal, for the card's owner: { r, m } or null. */
+  function readCheck(target, code) {
+    const T = String(target).toUpperCase(), c = String(code || "").toUpperCase(); if (c.length !== 4 || readSeal(target, c.slice(0, 3)) == null) return null;
+    const k = (ALPHA.indexOf(c[3]) - h32(T + c.slice(0, 3) + "?") % 32 + 64) % 32; return k < 9 ? { r: Math.floor(k / 3), m: CHK[k % 3] } : null;
+  }
   /* Open a seal for one of the player's own Signal IDs: 0 trusted, 1 said traitor, null if the seal is not for this ID. */
   function readSeal(target, code) {
-    const T = String(target).toUpperCase(), c = String(code || "").toUpperCase();
+    const T = String(target).toUpperCase(); let c = String(code || "").toUpperCase(); if (c.length === 4) c = c.slice(0, 3);
     if (c.length !== 3 || [...c].some((x) => ALPHA.indexOf(x) < 0)) return null;
     if (ALPHA[h32(T + c[0] + c[1] + "!") % 32] !== c[2]) return null;
     return ((ALPHA.indexOf(c[1]) - h32(T + c[0]) % 32 + 64) % 32) >> 4;
   }
-  return { sealCode, readSeal, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
+  return { sealCode, readSeal, sealCheck, readCheck, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
 })();
 if (typeof module !== "undefined") module.exports = Logic;

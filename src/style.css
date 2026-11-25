@@ -319,3 +319,9 @@ svg.portrait, svg.scene { image-rendering: pixelated; shape-rendering: crispEdge
 /* ---------- v8: still needed / replies line ---------- */
 .need { margin: 0 0 10px; padding: 8px 12px; border-left: 4px solid #8a6a1f; background: rgba(138, 106, 31, .08); }
 .need p { margin: 2px 0; }
+
+/* ---------- v10: check a report against the Archive ---------- */
+.chk { margin: 10px 0; padding: 8px 12px; border: 1px dashed #8a8878; } .chk > summary { cursor: pointer; }
+.chk .mini.on { background: #14231c; color: #efe9d8; }
+.chkfile { margin: 8px 0; padding: 8px 12px; background: rgba(0, 0, 0, .05); border-left: 4px solid #8a8878; } .chkfile .src { margin: 0 0 4px; }
+.chklist { margin: 4px 0 6px 18px; padding: 0; }

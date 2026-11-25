@@ -434,6 +434,12 @@ svg.portrait, svg.scene { image-rendering: pixelated; shape-rendering: crispEdge
 .need { margin: 0 0 10px; padding: 8px 12px; border-left: 4px solid #8a6a1f; background: rgba(138, 106, 31, .08); }
 .need p { margin: 2px 0; }
 
+/* ---------- v10: check a report against the Archive ---------- */
+.chk { margin: 10px 0; padding: 8px 12px; border: 1px dashed #8a8878; } .chk > summary { cursor: pointer; }
+.chk .mini.on { background: #14231c; color: #efe9d8; }
+.chkfile { margin: 8px 0; padding: 8px 12px; background: rgba(0, 0, 0, .05); border-left: 4px solid #8a8878; } .chkfile .src { margin: 0 0 4px; }
+.chklist { margin: 4px 0 6px 18px; padding: 0; }
+
 </style>
 <div id="app"></div>
 <script>
@@ -907,14 +913,25 @@ const Logic = (function () {
     const c1 = ALPHA[s % 32], c2 = ALPHA[(h32(T + c1) % 32 + (v ? 16 : 0) + ((s >> 5) % 16)) % 32];
     return c1 + c2 + ALPHA[h32(T + c1 + c2 + "!") % 32];
   }
+  /* v10: an optional Archive check adds a 4th character: k = report (0-2) * 3 + result (B backed up, W proven wrong, N can't tell). */
+  const CHK = "BWN";
+  function sealCheck(own, target, v, c) {
+    const base = sealCode(own, target, v); if (!c || c.r == null || CHK.indexOf(c.m) < 0) return base;
+    const T = String(target).toUpperCase(); return base + ALPHA[(h32(T + base + "?") + c.r * 3 + CHK.indexOf(c.m)) % 32];
+  }
+  /* The check inside a 4-character seal, for the card's owner: { r, m } or null. */
+  function readCheck(target, code) {
+    const T = String(target).toUpperCase(), c = String(code || "").toUpperCase(); if (c.length !== 4 || readSeal(target, c.slice(0, 3)) == null) return null;
+    const k = (ALPHA.indexOf(c[3]) - h32(T + c.slice(0, 3) + "?") % 32 + 64) % 32; return k < 9 ? { r: Math.floor(k / 3), m: CHK[k % 3] } : null;
+  }
   /* Open a seal for one of the player's own Signal IDs: 0 trusted, 1 said traitor, null if the seal is not for this ID. */
   function readSeal(target, code) {
-    const T = String(target).toUpperCase(), c = String(code || "").toUpperCase();
+    const T = String(target).toUpperCase(); let c = String(code || "").toUpperCase(); if (c.length === 4) c = c.slice(0, 3);
     if (c.length !== 3 || [...c].some((x) => ALPHA.indexOf(x) < 0)) return null;
     if (ALPHA[h32(T + c[0] + c[1] + "!") % 32] !== c[2]) return null;
     return ((ALPHA.indexOf(c[1]) - h32(T + c[0]) % 32 + 64) % 32) >> 4;
   }
-  return { sealCode, readSeal, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
+  return { sealCode, readSeal, sealCheck, readCheck, proofCode, badges, clamp, roleIdx, roleById, order, kindOf, shiftFor, encode, decode, piece, newState, choose, ending, finalScore, rank, signalId, sealAlg, parseSignal, chk, intelFor, plantedLie, proveOpts, verdictScore };
 })();
 if (typeof module !== "undefined") module.exports = Logic;
 
@@ -2827,9 +2844,36 @@ const RECMAPS = (function () {
   const isMine = (id) => Object.values(board().mine || {}).indexOf(id) >= 0;
   const unsealed = () => fullCount(board()) >= 6;
   const vdText = (p, vd) => vd.v === "A" ? "You said TRUST." : "You said TRAITOR.";
+  /* v10: the optional Archive check. One report per classmate, compared with the Archive file it comes from. */
+  const CHK_LABEL = { B: "Backed up", W: "Proven wrong", N: "Can't tell" };
+  const archFile = (id) => { for (const d of D.ARCHIVE) { const f = d.files.find((x) => x.id === id); if (f) return { d, f }; } return null; };
+  const chkFileFor = (rid, r) => archFile(D.INTEL[rid][r].file);
+  const chkRight = (p, c) => c && c.m !== "N" && p.alleg != null ? ((p.alleg === c.r + 1) === (c.m === "W")) : null;
+  function bindReveal(el, seen) {
+    $$(".red", el).forEach((s, i) => {
+      let t = null; const show = () => { if (seen) seen[i] = 1; if (!s.classList.contains("shown")) { s.classList.add("shown"); s.removeAttribute("aria-label"); s.removeAttribute("role"); } };
+      if (seen && seen[i]) show();
+      s.addEventListener("mouseenter", () => { t = setTimeout(show, 250); }); s.addEventListener("mouseleave", () => { clearTimeout(t); }); s.addEventListener("focus", show); s.addEventListener("click", show);
+    });
+  }
+  let curChk = null;
+  function paintChk(p) {
+    const box = $("#ichk"); if (!box) return; const c = curChk || {};
+    const btn = (attr, val, txt, on) => `<button class="mini${on ? " on" : ""}" ${attr}="${val}" aria-pressed="${!!on}">${txt}</button>`;
+    let h = `<details class="chk"${c.r != null ? " open" : ""}><summary><b>Bonus: check a report against the Archive</b> (optional)</summary><p class="small">You can check <b>one</b> report. Pick the one you're least sure about.</p><div class="row">${[0, 1, 2].map((r) => btn("data-cr", r, "Report " + (r + 1), c.r === r)).join("")}</div>`;
+    if (c.r != null) {
+      const af = chkFileFor(p.role.id, c.r);
+      h += `<div class="chkfile"><p class="src">THE ARCHIVE · ${esc(af.d.name)} · ${esc(af.f.tab)}</p><p>${redact(af.f.text)}</p><p class="dhint">Hover over a black bar, or tap it, to see what is underneath.</p></div>
+        <p>Compare it with <b>Report ${c.r + 1}</b>. The report is…</p><div class="row">${["B", "W", "N"].map((m) => btn("data-cm", m, CHK_LABEL[m], c.m === m)).join("")}</div>
+        ${c.m ? `<p class="small">Your check: Report ${c.r + 1}, <b>${CHK_LABEL[c.m]}</b>. It is sealed with your verdict, so only this agent can see it.</p>` : ""}`;
+    }
+    box.innerHTML = h + "</details>"; if (curChk && !curChk.seen) curChk.seen = {}; bindReveal(box, curChk && curChk.seen);
+    $$("[data-cr]", box).forEach((b) => b.addEventListener("click", () => { curChk = { r: +b.dataset.cr, m: null, seen: {} }; paintChk(p); const f = $("[data-cm]", box); if (f) f.closest(".row").previousElementSibling.scrollIntoView({ block: "nearest" }); }));
+    $$("[data-cm]", box).forEach((b) => b.addEventListener("click", () => { curChk.m = b.dataset.cm; paintChk(p); }));
+  }
   function vdResult(p, vd) {
     const sc = L.verdictScore(p.alleg, vd), x = p.alleg ? L.plantedLie(p.role.id, p.alleg, p.lie) : null;
-    return `<p class="vres ${sc.right ? "good" : "bad"}"><b>${p.alleg ? "DOUBLE AGENT." : "LOYAL AGENT."}</b> ${p.alleg ? `Report ${p.alleg} was planted: it said “${esc(x.lieWord)}”, but the truth is “${esc(x.truthWord)}”.` : "All three reports were true."} ${sc.right ? "You were right." : "You were fooled."}</p>`;
+    return `<p class="vres ${sc.right ? "good" : "bad"}"><b>${p.alleg ? "DOUBLE AGENT." : "LOYAL AGENT."}</b> ${p.alleg ? `Report ${p.alleg} was planted: it said “${esc(x.lieWord)}”, but the truth is “${esc(x.truthWord)}”.` : "All three reports were true."} ${sc.right ? "You were right." : "You were fooled."}</p>${vd.c ? `<p class="small">Your Archive check: Report ${vd.c.r + 1}, ${CHK_LABEL[vd.c.m]}. ${chkRight(p, vd.c) == null ? "" : chkRight(p, vd.c) ? "Your check was right." : "Your check was not right."}</p>` : ""}`;
   }
   /* Same-role comparison (v6): the other agents of this role that the player knows (decoded, or their own card). A loyal agent's
      reports match every other loyal teammate; a double agent's planted report won't. */
@@ -2848,7 +2892,7 @@ const RECMAPS = (function () {
     if (p.alleg == null) return `<p class="small">This Signal ID is from an older version of the game, so there are no intel reports to check.</p>`;
     if (isMine(p.id)) return `<p class="small">This is your own Signal ID, so there is nothing to interrogate.</p>`;
     const reps = L.intelFor(p.role.id, p.alleg, p.lie).map((x, i) => `<li><b>Report ${i + 1}.</b> ${esc(x.text)}</li>`).join("");
-    return `<section class="interro"><p class="src">TRUST OR TRAITOR</p><p>${esc(p.role.name)}'s card carries these intel reports. Is this agent loyal, or a double agent who planted one lie?</p><ol class="intel">${reps}</ol><p class="small"><b>Go with your gut.</b> Real intelligence officers often had no way to check. Does this sound right? Do you trust this agent?</p>${compareHTML(p)}<div id="istep"></div>
+    return `<section class="interro"><p class="src">TRUST OR TRAITOR</p><p>${esc(p.role.name)}'s card carries these intel reports. Is this agent loyal, or a double agent who planted one lie?</p><ol class="intel">${reps}</ol><p class="small"><b>Go with your gut</b>, like real intelligence officers who often had no way to check. Or check one report against the Archive below.</p>${compareHTML(p)}<div id="ichk"></div><div id="istep"></div>
       <p class="small">Your verdict goes into your reply as a sealed code, so only this agent can open it. Want background? <button class="mini" id="iarch">Read the Archive</button> (optional)</p></section>`;
   }
   function bindInter(p) {
@@ -2856,13 +2900,14 @@ const RECMAPS = (function () {
     const ab = $("#iarch"); if (ab) ab.addEventListener("click", () => openArchive(p.role.id));
     const b0 = board(), filed = (b0.verdicts || {})[p.id];
     const rb = $("#replybox");
+    const cb = $("#ichk"); if (cb) { if (filed) cb.innerHTML = filed.c ? `<p class="small">Your Archive check: Report ${filed.c.r + 1}, <b>${CHK_LABEL[filed.c.m]}</b>.</p>` : ""; else { if (curInt !== p.id) curChk = null; paintChk(p); } }
     if (filed) { curInt = null; if (rb) rb.hidden = false; box.innerHTML = `<p class="vfiled"><b>Verdict sealed.</b> ${esc(vdText(p, filed))} It is inside your reply${repliedIds(b0).indexOf(p.id) >= 0 || repliedIds(b0).length < REPLIES_NEEDED ? ", below" : " if you choose to send one"}.</p>${unsealed() ? vdResult(p, filed) : `<p class="small">You find out if you were right once you have decoded all six messages.</p>`}`; return; }
     /* v7: one click seals the verdict, writes the reply and copies it. The reply block stays hidden until then. */
     curInt = p.id; if (rb) rb.hidden = true;
     const opt = (val, key, txt) => `<button class="mitem" data-v="${val}"><span class="key">${key}</span><span>${txt}</span></button>`;
     box.innerHTML = `<h3>Do you trust this agent?</h3><div class="mlist two" role="group" aria-label="Verdict">${opt("A", "T", "<b>TRUST.</b> All three reports are true.")}${opt("D", "X", "<b>TRAITOR.</b> One report is a lie.")}</div><p class="small">${repliedIds(board()).length >= REPLIES_NEEDED ? "One click seals your verdict. You already have your 2 replies, so a reply to this agent is optional." : "One click seals your verdict and copies your reply."} A sealed verdict can't be changed.</p>`;
     $$("[data-v]", box).forEach((x) => x.addEventListener("click", () => {
-      const b = board(); b.verdicts = b.verdicts || {}; if (b.verdicts[p.id]) return; b.verdicts[p.id] = { v: x.dataset.v }; store.set("cb_board", b);
+      const b = board(); b.verdicts = b.verdicts || {}; if (b.verdicts[p.id]) return; b.verdicts[p.id] = curChk && curChk.m ? { v: x.dataset.v, c: { r: curChk.r, m: curChk.m } } : { v: x.dataset.v }; curChk = null; store.set("cb_board", b);
       bindInter(p); if (repaintReply) repaintReply();
       const b2 = board(), done = repliedIds(b2).length >= REPLIES_NEEDED && repliedIds(b2).indexOf(p.id) < 0, c = $("#cprep");
       if (c && !done) { c.click(); c.closest(".replybox").scrollIntoView({ block: "center", behavior: "smooth" }); }
@@ -2922,7 +2967,7 @@ const RECMAPS = (function () {
       if (mp[r]) mine = `I chose: ${mp[r]}\n` + (mp[r] === p.picks[r].label ? "We made the same call." : "We made different calls.");
       const L1 = "━━━━━━━━━━━━━━━━━━━━";
       const me = myId(), proof = me && !isMine(p.id) ? L.proofCode(me, p.id) : null;
-      const vd = (board().verdicts || {})[p.id], seal = proof && p.alleg != null && vd ? L.sealCode(me, p.id, vd.v === "A" ? 0 : 1) : null;
+      const vd = (board().verdicts || {})[p.id], seal = proof && p.alleg != null && vd ? L.sealCheck(me, p.id, vd.v === "A" ? 0 : 1, vd.c) : null;
       const pn = $("#rproof"); if (pn) pn.innerHTML = (proof ? `Your proof code for this reply is <b>${proof}</b>. It is already in the reply, and it goes in your submission, so your teacher can find your reply on the Padlet.` : `<b>No proof code yet.</b> Finish your own game first, then come back and copy this reply. Replies without a proof code may not count.`)
         + (proof && p.alleg != null ? (seal ? ` <b>SEAL ${seal}</b> is your sealed verdict. Only this agent can open it.` : ` <b>Choose Trust or Traitor above first</b>, so your sealed verdict goes into the reply.`) : "");
       ta.value = [`DECODED ${p.id} (${p.role.name})`, ...(proof ? [`PROOF ${proof}`] : []), ...(seal ? [`SEAL ${seal}`] : []), L1, `ROUND ${r + 1}: ${rTitle(p.role.id, r)}`, L1, `You chose: ${p.picks[r].label}`, ...(mine ? ["", mine] : []), "", L1, "QUESTION FOR YOU", L1, qs[+rq.value || 0]].join("\n");
@@ -2970,19 +3015,19 @@ const RECMAPS = (function () {
   const ownAgents = (b) => Object.values(b.mine || {}).map(L.parseSignal).filter((q) => q && q.alleg != null);
   function sealTally(b) {
     const got = b.seals || {};
-    return ownAgents(b).map((q) => { const v = (got[q.id] || []).map((c) => L.readSeal(q.id, c)).filter((x) => x != null); return { q, n: v.length, trust: v.filter((x) => x === 0).length }; });
+    return ownAgents(b).map((q) => { const v = (got[q.id] || []).map((c) => L.readSeal(q.id, c)).filter((x) => x != null), chks = (got[q.id] || []).map((c) => L.readCheck(q.id, c)).filter(Boolean); return { q, n: v.length, trust: v.filter((x) => x === 0).length, chks }; });
   }
   function sealsHTML(b) {
     const t = sealTally(b); if (!t.length) return "";
-    const res = t.map(({ q, n, trust }) => `<div class="sealres"><p class="sl">${esc(q.id)} · ${esc(q.role.name)} · ${q.alleg ? "double agent" : "loyal agent"}</p>${!n ? "<p>No seals opened yet.</p>" : q.alleg ? `<p><b>You fooled ${trust} of ${n}.</b> ${n - trust} caught you.</p>` : `<p><b>${trust} trusted you.</b> ${n - trust} suspected you.</p>`}</div>`).join("");
+    const res = t.map(({ q, n, trust, chks }) => `<div class="sealres"><p class="sl">${esc(q.id)} · ${esc(q.role.name)} · ${q.alleg ? "double agent" : "loyal agent"}</p>${!n ? "<p>No seals opened yet.</p>" : q.alleg ? `<p><b>You fooled ${trust} of ${n}.</b> ${n - trust} caught you.</p>` : `<p><b>${trust} trusted you.</b> ${n - trust} suspected you.</p>`}${n ? (chks.length ? `<p class="small"><b>Who checked the evidence:</b></p><ul class="chklist">${chks.map((c) => `<li>Report ${c.r + 1} vs. ${esc(chkFileFor(q.role.id, c.r).f.tab)}: <b>${CHK_LABEL[c.m]}</b></li>`).join("")}</ul>` : "") + (n - chks.length ? `<p class="small">${n - chks.length} went with their gut.</p>` : "") : ""}</div>`).join("");
     return `<section class="panel seals"><h2>Who trusted you?</h2><p>Every reply on your Padlet card has a <b>SEAL</b> code with that classmate's secret verdict. Copy the replies (or just the SEAL codes) and paste them here.</p>
       <div class="field"><label for="sealin">Replies from your card</label><textarea id="sealin" rows="4" placeholder="SEAL K7Q"></textarea></div><div class="row"><button class="btn" id="sealgo">Open the seals</button></div><p class="small cmsg" id="sealmsg" role="status"></p>${res}<p class="small">This is just for you. It doesn't change your submission.</p></section>`;
   }
   function bindSeals() {
     const go = $("#sealgo"); if (!go) return;
     go.addEventListener("click", () => {
-      const raw = $("#sealin").value.toUpperCase(), tagged = [...raw.matchAll(/SEAL\s*:?\s*([A-Z0-9]{3})\b/g)].map((m) => m[1]);
-      const codes = tagged.length ? tagged : (raw.match(/\b[A-Z0-9]{3}\b/g) || []);
+      const raw = $("#sealin").value.toUpperCase(), tagged = [...raw.matchAll(/SEAL\s*:?\s*([A-Z0-9]{3,4})\b/g)].map((m) => m[1]);
+      const codes = tagged.length ? tagged : (raw.match(/\b[A-Z0-9]{3,4}\b/g) || []);
       const b = board(), own = ownAgents(b); b.seals = b.seals || {}; let added = 0, dup = 0, bad = 0;
       codes.forEach((c) => { const q = own.find((x) => L.readSeal(x.id, c) != null); if (!q) { bad++; return; } const l = b.seals[q.id] = b.seals[q.id] || []; if (l.indexOf(c) >= 0) dup++; else { l.push(c); added++; } });
       store.set("cb_board", b); renderBoard(); bindGo();

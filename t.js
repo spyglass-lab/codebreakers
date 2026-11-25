@@ -36,7 +36,13 @@ const { chromium } = require('playwright'); const L = require('./src/logic.js');
   await p.click('#iarch'); await p.waitForSelector('.archive .dossier'); await p.click('.ftab:nth-child(2)'); await p.hover('.archive .red'); await p.waitForTimeout(500); await p.screenshot({ path: `shots/${mode}-archive.png` }); await p.keyboard.press('Escape');
   if (/SEAL /.test(await p.inputValue('#rtext'))) errs.push('REPLY has a SEAL before a verdict');
   if (await p.$('.cmp')) errs.push('COMPARE box shown with no teammate decoded'); if (!/Go with your gut/.test(await p.innerText('.interro'))) errs.push('gut-call line missing');
+  await p.click('.chk > summary'); await p.click('[data-cr="1"]'); await p.waitForSelector('.chkfile');
+  { const f = await p.innerText('.chkfile'), want = DATA.ARCHIVE.flatMap((d) => d.files).find((x) => x.id === DATA.INTEL[o][1].file).tab; if (!f.toUpperCase().includes(want.toUpperCase())) errs.push('CHECK shows the wrong file: ' + f); }
+  await p.click('.chkfile .red'); await p.click('[data-cm="W"]'); if (!/Report 2, Proven wrong/.test(await p.innerText('#ichk'))) errs.push('CHECK choice not shown');
+  await p.screenshot({ path: `shots/${mode}-check.png`, fullPage: true });
   await p.click('[data-v="D"]'); await p.waitForSelector('.vfiled'); await p.waitForTimeout(300);
+  if (!/Report 2, Proven wrong/.test(await p.innerText('#ichk'))) errs.push('CHECK not shown after sealing');
+  if (!(await p.inputValue('#rtext')).includes('SEAL ' + L.sealCheck(id, sid, 1, { r: 1, m: 'W' }))) errs.push('REPLY seal does not carry the check');
   if (!/Reply copied \(1 of 2\)/.test(await p.textContent('#rmsg'))) errs.push('ONE CLICK did not copy the reply: ' + await p.textContent('#rmsg'));
   { const nd = await p.innerText('#need'); if (!/Replies: 1 of 2 done/.test(nd) || !/Still needed:/.test(nd) || nd.includes(L.roleById(o).name)) errs.push('NEED line wrong after first decode: ' + nd); }
   if (!(await p.isVisible('#cprep'))) errs.push('reply block hidden after verdict');
@@ -44,7 +50,7 @@ const { chromium } = require('playwright'); const L = require('./src/logic.js');
   { const rt = await p.inputValue('#rtext'); if (!rt.includes('SEAL ' + L.sealCode(id, sid, 1))) errs.push('REPLY has no matching SEAL:\n' + rt); } await p.waitForSelector('.vfiled'); await p.screenshot({ path: `shots/${mode}-decoded.png`, fullPage: true });
   await p.click('[data-go="board"]'); await p.waitForTimeout(200); await p.screenshot({ path: `shots/${mode}-board.png`, fullPage: true });
   const bd = await p.evaluate(() => JSON.parse(localStorage.getItem('cb_board'))); const v = (bd.verdicts || {})[sid];
-  if (!v || v.v !== 'D' || Object.keys(v).length !== 1) errs.push('VERDICT not stored as expected: ' + JSON.stringify(v));
+  if (!v || v.v !== 'D' || !v.c || v.c.r !== 1 || v.c.m !== 'W' || Object.keys(v).length !== 2) errs.push('VERDICT not stored as expected: ' + JSON.stringify(v));
   // a loyal teammate of the double agent: the comparison shows report 2 differs
   const S2 = L.newState(L.roleById(o), 'y'); for (let r = 0; r < 6; r++) { S2.i = r; L.choose(S2, (r + 1) % 3); } S2.alg = { v: 0, r: 1 }; const sid2 = L.signalId(S2);
   await p.fill('#sid', sid2); await p.click('#dgo'); await p.waitForSelector('.cmprow'); { const c = await p.innerText('.cmp'); if (!c.includes(sid) || !/Report 2 is different/.test(c) || /Report [13] is different/.test(c)) errs.push('COMPARE wrong: ' + c); }
@@ -58,8 +64,9 @@ const { chromium } = require('playwright'); const L = require('./src/logic.js');
     await p.screenshot({ path: `shots/${mode}-third.png`, fullPage: true });
     const bd2 = await p.evaluate(() => JSON.parse(localStorage.getItem('cb_board'))); if ((bd2.replied || []).join() !== [sid, sid2].join()) errs.push('REPLIED list wrong: ' + JSON.stringify(bd2.replied)); }
   // Who trusted you?: two classmates' seals for this player's card (one trust, one traitor), one pasted twice
-  await p.fill('#sealin', 'DECODED x\nSEAL ' + L.sealCode(sid, id, 0) + '\nblah\nSEAL ' + L.sealCode(sid2, id, 1) + '\nSEAL ' + L.sealCode(sid2, id, 1)); await p.click('#sealgo'); await p.waitForSelector('.sealres');
+  await p.fill('#sealin', 'DECODED x\nSEAL ' + L.sealCode(sid, id, 0) + '\nblah\nSEAL ' + L.sealCheck(sid2, id, 1, { r: 0, m: 'B' }) + '\nSEAL ' + L.sealCheck(sid2, id, 1, { r: 0, m: 'B' })); await p.click('#sealgo'); await p.waitForSelector('.sealres');
   { const t = await p.innerText('.seals'); const want = alg ? 'You fooled 1 of 2' : '1 trusted you'; if (!t.includes(want) || !/Opened 2 new seals\. 1 already opened/.test(t)) errs.push('SEALS wrong: ' + t); }
+  { const t = await p.innerText('.seals'); if (!/Who checked the evidence/.test(t) || !/Report 1 vs\. .+: Backed up/.test(t) || !/1 went with their gut/.test(t)) errs.push('SEALS check list wrong: ' + t); }
   await p.screenshot({ path: `shots/${mode}-seals.png`, fullPage: true });
   if ((await p.evaluate(() => JSON.stringify(localStorage))).indexOf('Marta') >= 0) errs.push('NAME was saved');
   console.log(errs.length ? errs.join('\n') : 'no errors'); await b.close();
