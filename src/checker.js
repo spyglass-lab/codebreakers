@@ -10,11 +10,12 @@
 
   /* v11: replies found on the Padlet. The teacher gives Padlet's export (Excel, CSV) or pasted Padlet text; it is read on this computer only.
      Every "DECODED <ID> ... PROOF R-XXX" in it is a reply; a student's reply is one whose code matches one of their own Signal IDs. */
-  let padPairs = null;
+  let padPairs = null, padCards = null;
   function scanPadlet(text) {
     const t = String(text).replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/<[^>]*>/g, " ").toUpperCase();
     const re = /DECODED\s+([A-Z]{2}-[ABC]{6}(?:-[A-Z0-9])?-[A-Z0-9]{2})[\s\S]{0,160}?PROOF\s+(R-[A-Z0-9]{3})/g, out = {}; let m;
     while ((m = re.exec(t))) out[m[1] + "|" + m[2]] = 1;
+    padCards = {}; const rc = /SIGNAL\s*ID\s*:?\s*([A-Z]{2}-[ABC]{6}(?:-[A-Z0-9])?-[A-Z0-9]{2})/g; while ((m = rc.exec(t))) padCards[m[1]] = 1;
     return out;
   }
   /* An .xlsx file is a zip of XML files: read them with the browser's own decompression (no libraries, nothing sent). */
@@ -42,9 +43,9 @@
   /* A clear result box, so choosing the file visibly does something even before any submissions are checked. */
   function padStatus(kind, html) { const m = $("#padmsg"); if (!m) return; m.className = "padres " + kind; m.innerHTML = html; }
   function setPadlet(text, label) {
-    padPairs = scanPadlet(text); const n = Object.keys(padPairs).length, subs = $("#subs").value.trim();
-    if (!n) { padPairs = null; padStatus("bad", `<b>No game replies found in ${esc(label)}.</b> The file had ${Math.round(String(text).length / 1000)}k characters of text, but no reply starting with DECODED and a PROOF code. Try Padlet's other export format (Excel or CSV), or open a card on the Padlet, select its comments, copy them and paste them under <i>Or paste text copied from the Padlet</i>.`); return; }
-    padStatus("good", `<b>✓ Found ${n} game repl${n === 1 ? "y" : "ies"} on the Padlet</b> in ${esc(label)}.<br>${subs ? "The <b>Replies found on Padlet</b> column in the table below now uses this file." : "Next: paste the students' submissions in the box above and press <b>Check</b>. The <b>Replies found on Padlet</b> column will show each student's replies."}`);
+    padPairs = scanPadlet(text); const n = Object.keys(padPairs).length, nc = Object.keys(padCards).length, subs = $("#subs").value.trim();
+    if (!n && !nc) { padPairs = null; padCards = null; padStatus("bad", `<b>No game replies found in ${esc(label)}.</b> The file had ${Math.round(String(text).length / 1000)}k characters of text, but no reply starting with DECODED and a PROOF code. Try Padlet's other export format (Excel or CSV), or open a card on the Padlet, select its comments, copy them and paste them under <i>Or paste text copied from the Padlet</i>.`); return; }
+    padStatus("good", `<b>✓ Found ${nc} card${nc === 1 ? "" : "s"} and ${n} game repl${n === 1 ? "y" : "ies"} on the Padlet</b> in ${esc(label)}.<br>${subs ? "The <b>Steps</b> column in the table below now uses this file: cards and replies are checked on the Padlet itself." : "Next: paste the students' submissions in the box above and press <b>Check</b>. The <b>Steps</b> column will show whether each student posted their card and 2 replies."}`);
     if (subs) { run(); const t = $("#out table.simple"); if (t) t.scrollIntoView({ block: "start", behavior: "smooth" }); }
   }
 
@@ -62,7 +63,7 @@
       name: (head[1] || "").trim() || "(no name)", roleName: (head[2] || "").trim(),
       own: ownLine === null ? null : (ownLine.toUpperCase().match(ID_RE) || []),
       dec: decLine === null ? [] : (decLine.toUpperCase().match(ID_RE) || []),
-      decRaw: decLine, msgs, refl: refl.trim(), verdicts, hasVd: vdLine !== null, replies, hasRc: rcLine !== null
+      decRaw: decLine, msgs, refl: refl.trim(), hasRefl: (/^\s*Most surprising\s*:/mi.test(text) && /^\s*Why\s*:/mi.test(text)) || refl.trim().length > 0, verdicts, hasVd: vdLine !== null, replies, hasRc: rcLine !== null
     };
   }
 
@@ -143,18 +144,33 @@
     const vdCell = (r) => r.vs.n ? `${r.vs.right} of ${r.vs.n} right` : (r.sub.hasVd ? "None filed" : "—");
     const rcCell = (r) => r.rc.good.length ? `${r.rc.good.length}<div class="mono small">${r.rc.good.map((x) => esc(x.code)).join(" ")}</div>` : (r.sub.hasRc ? "0" : "—");
     const agCell = (r) => r.agent ? (r.agent.p.alleg ? `Double: fooled ${r.agent.pts}` : `Loyal: trusted by ${r.agent.pts}`) : "—";
-    const nOk = rows.filter((r) => r.ok).length, nNote = rows.filter((r) => r.ok && r.warn.length).length;
+    let nOk = 0, nNote = 0;
     /* Engagement view (v5): Done? plus who each student connected with. "Decoded by" counts other pasted submissions that list this student's own Signal ID. No flag for a low count (teacher's choice). */
     const decodedBy = (r) => rows.filter((o) => o !== r && (r.sub.own || []).some((id) => o.sub.dec.indexOf(id) >= 0)).length;
     const nDec = (r) => r.sub.dec.filter((id) => L.parseSignal(id) && (r.sub.own || []).indexOf(id) < 0).length;
     const padCell = (r) => { const c = padCount(r.sub); return c ? `${c.found} found${c.missing ? `, ${c.missing} listed but not found` : ""}` : (r.sub.hasRc ? String(r.rc.good.length) : "—"); };
-    const doneTxt = (r) => r.ok ? (r.warn.length ? "✓ Done, see note" : "✓ Done") : "✗ Not done";
+    /* v11: every step of the assignment, so Done? means nothing was skipped. Card posted is known only with the Padlet file. */
+    const stepsOf = (r) => {
+      const c = padCount(r.sub), nRep = c ? c.found : r.rc.good.length, own = (r.sub.own || []), card = padCards ? own.some((id) => padCards[id]) : null;
+      const st = [
+        { k: "Card posted", ok: card, txt: card == null ? "Card: add Padlet file" : card ? "Card posted" : "No card on Padlet" },
+        { k: "4 roles decoded", ok: !r.missing.filter((x) => !r.covered[x]).length && r.nRoles === 5, txt: r.nRoles === 5 ? "4 roles decoded" : `Roles: ${Math.max(0, r.nRoles - 1)} of 4` },
+        { k: "2 replies", ok: nRep >= 2, txt: nRep >= 2 ? `${nRep} replies${c ? "" : " (listed)"}` : `Replies: ${nRep} of 2${c ? " on Padlet" : ""}` },
+        { k: "6 messages", ok: r.right === 6, txt: r.right === 6 ? "6 messages" : `Messages: ${r.right} of 6` },
+        { k: "Reflection", ok: !!r.sub.hasRefl, txt: r.sub.hasRefl ? "Reflection" : "No reflection" }];
+      return { st, done: r.ok && st.every((x) => x.ok !== false), skipped: st.filter((x) => x.ok === false).map((x) => x.txt) };
+    };
+    rows.forEach((r) => { r.steps = stepsOf(r); });
+    const stepsCell = (r) => `<div class="steps">${r.steps.st.map((x) => `<span class="${x.ok === true ? "on" : x.ok === false ? "off" : "unk"}">${x.ok === true ? "✓" : x.ok === false ? "✗" : "?"} ${esc(x.txt)}</span>`).join("")}</div>`;
+    const doneTxt = (r) => r.steps.done ? (r.warn.length ? "✓ Done, see note" : "✓ Done") : "✗ Not done";
+    const doneOld = (r) => r.ok ? (r.warn.length ? "✓ Done, see note" : "✓ Done") : "✗ Not done";
+    nOk = rows.filter((r) => r.steps.done).length; nNote = rows.filter((r) => r.steps.done && r.warn.length).length;
     $("#out").innerHTML = `<p class="sum"><b>${rows.length}</b> submission${rows.length > 1 ? "s" : ""} checked · <b class="ok">${nOk} done</b>${nNote ? ` (${nNote} with a note)` : ""} · <b class="bad">${rows.length - nOk} not done</b></p>
-      <table class="simple"><thead><tr><th>Student</th><th>Role</th><th>Done?</th><th>Classmates decoded</th><th>${padPairs ? "Replies found on Padlet" : "Replies posted"}</th><th>Decoded by</th><th>Notes</th></tr></thead><tbody>${rows.map((r) => `<tr class="${r.ok ? (r.warn.length ? "w" : "g") : "b"}">
-        <td>${esc(r.sub.name)}</td><td>${esc(r.role ? r.role.name : r.sub.roleName || "?")}</td><td><b>${doneTxt(r)}</b></td><td>${nDec(r)}</td><td>${padCell(r)}</td><td>${decodedBy(r)}</td>
+      <table class="simple"><thead><tr><th>Student</th><th>Role</th><th>Done?</th><th>Steps</th><th>Decoded by</th><th>Notes</th></tr></thead><tbody>${rows.map((r) => `<tr class="${r.steps.done ? (r.warn.length ? "w" : "g") : "b"}">
+        <td>${esc(r.sub.name)}</td><td>${esc(r.role ? r.role.name : r.sub.roleName || "?")}</td><td><b>${doneTxt(r)}</b>${r.steps.skipped.length ? `<div class="small">Skipped: ${esc(r.steps.skipped.join("; "))}</div>` : ""}</td><td>${stepsCell(r)}</td><td>${decodedBy(r)}</td>
         <td>${r.notes.concat(r.warn).map((n) => `<div>${esc(n)}</div>`).join("") || ""}</td></tr>`).join("")}</tbody></table>
       <div class="row"><button class="btn" id="tsv1">Copy for a spreadsheet</button><span class="small" id="tsv1msg" role="status"></span></div>
-      <p class="small"><b>Done?</b> means all six messages are right and all five roles are covered. ${padPairs ? "<b>Replies found on Padlet</b> counts this student's replies in the Padlet file you gave, matched by proof code. <i>Listed but not found</i> means a reply in their submission is not on the Padlet (not posted yet, edited, or deleted)." : "<b>Replies posted</b> counts the reply proof codes in the submission that match the student. To check they are really on the Padlet, add the Padlet's export below the submissions box."} <b>Decoded by</b> counts classmates in this paste who decoded the student, so it grows as more submissions come in.</p>
+      <p class="small"><b>Done?</b> means every step is complete: card posted on the Padlet, all four other roles decoded, at least 2 replies, all six messages right, and a reflection. Without the Padlet file, the card can't be checked (shown as ?) and replies are counted from the proof codes listed in the submission (copied, not proven posted). ${padPairs ? "With the Padlet file, replies are only counted if they are really on the Padlet, matched by proof code." : "Add the Padlet export file below the submissions box to check the card and the replies on the Padlet itself."} <b>Decoded by</b> counts classmates in this paste who decoded the student, so it grows as more submissions come in.</p>
       <details class="more"><summary>Full details, Trust or Traitor and the Unmasking</summary>
       <table><thead><tr><th>Student</th><th>Role</th><th>Own Signal ID</th><th>Roles covered</th><th>Messages</th><th>Result</th><th>Reply codes</th><th>Verdicts</th><th>As agent</th><th>Notes</th></tr></thead><tbody>${rows.map((r) => `<tr class="${r.ok ? (r.warn.length ? "w" : "g") : "b"}">
         <td>${esc(r.sub.name)}</td><td>${esc(r.role ? r.role.name : r.sub.roleName || "?")}</td><td class="mono">${esc((r.sub.own || []).join(", ") || "none")}</td>
@@ -166,7 +182,7 @@
       <p class="small"><b>Verdicts</b> (Trust or Traitor): how many of the agents they judged they got right (Trust for a loyal agent, Traitor for a double agent). <b>As agent</b>: how many classmates trusted a loyal agent, or were fooled by a double agent.</p>
       <div class="row"><button class="btn ghost" id="unbtn" aria-expanded="false">Show the Unmasking</button><span class="small">Reveals who was a double agent. Show it to the class only when everyone is done.</span></div><div id="unmask" hidden>${unmaskHTML(rows, ag)}</div></details>`;
     $("#tsv1").addEventListener("click", () => {
-      const tsv = [["Student", "Role", "Done", "Classmates decoded", padPairs ? "Replies found on Padlet" : "Replies posted", "Decoded by", "Notes"].join("\t")].concat(rows.map((r) => [r.sub.name, r.role ? r.role.name : r.sub.roleName, r.ok ? "Done" : "Not done", nDec(r), padCell(r), decodedBy(r), r.notes.concat(r.warn).join(" ")].join("\t"))).join("\n");
+      const tsv = [["Student", "Role", "Done", "Skipped", "Classmates decoded", padPairs ? "Replies found on Padlet" : "Replies listed", "Decoded by", "Notes"].join("\t")].concat(rows.map((r) => [r.sub.name, r.role ? r.role.name : r.sub.roleName, r.steps.done ? "Done" : "Not done", r.steps.skipped.join("; "), nDec(r), padCell(r), decodedBy(r), r.notes.concat(r.warn).join(" ")].join("\t"))).join("\n");
       navigator.clipboard.writeText(tsv).then(() => { $("#tsv1msg").textContent = "Copied. Paste into a spreadsheet."; }, () => { $("#tsv1msg").textContent = "Your browser would not copy."; });
     });
     $("#unbtn").addEventListener("click", (e) => { const u = $("#unmask"), open = u.hidden; u.hidden = !open; e.currentTarget.textContent = open ? "Hide the Unmasking" : "Show the Unmasking"; e.currentTarget.setAttribute("aria-expanded", open); if (open) u.scrollIntoView({ block: "start" }); });
@@ -194,7 +210,7 @@
     e.target.value = "";
   });
   $("#padgo").addEventListener("click", () => { const t = $("#ptxt").value; if (t.trim()) setPadlet(t, "the pasted text"); });
-  $("#padclear").addEventListener("click", () => { padPairs = null; $("#pfile").value = ""; $("#ptxt").value = ""; const m = $("#padmsg"); m.className = "small"; m.textContent = ""; if ($("#out").innerHTML) run(); });
+  $("#padclear").addEventListener("click", () => { padPairs = null; padCards = null; $("#pfile").value = ""; $("#ptxt").value = ""; const m = $("#padmsg"); m.className = "small"; m.textContent = ""; if ($("#out").innerHTML) run(); });
   $("#clear").addEventListener("click", () => { $("#subs").value = ""; $("#out").innerHTML = ""; });
   $("#onego").addEventListener("click", look); $("#one").addEventListener("keydown", (e) => { if (e.key === "Enter") look(); });
 })();

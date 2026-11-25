@@ -56,3 +56,4 @@ a.btn { display: inline-block; text-decoration: none; } .btn:focus-visible, a:fo
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .padin .row:focus-within .filebtn { outline: 2px solid var(--ink); outline-offset: 2px; }
 .padres { padding: 10px 14px; margin: 10px 0 0; border-left: 4px solid var(--dim); background: var(--panel); } .padres.good { border-color: var(--green); } .padres.bad { border-color: var(--red); } .padres.wait { border-color: var(--gold); }
+.steps { display: flex; flex-wrap: wrap; gap: 4px; } .steps span { font-size: 12px; padding: 1px 6px; border: 1px solid var(--line); white-space: nowrap; } .steps .on { color: var(--green); border-color: var(--green); } .steps .off { color: var(--red); border-color: var(--red); } .steps .unk { color: var(--dim); }
