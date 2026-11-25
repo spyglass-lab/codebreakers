@@ -315,3 +315,7 @@ svg.portrait, svg.scene { image-rendering: pixelated; shape-rendering: crispEdge
 .replybox h3 { margin: 0 0 4px; font-size: 1rem; letter-spacing: .08em; } .replybox .row { margin: 6px 0; } .replybox .cmsg { font-weight: 700; }
 .rmore > summary { cursor: pointer; margin: 6px 0; } .rmore textarea { width: 100%; }
 .decoded .theirs { margin-top: 18px; }
+
+/* ---------- v8: still needed / replies line ---------- */
+.need { margin: 0 0 10px; padding: 8px 12px; border-left: 4px solid #8a6a1f; background: rgba(138, 106, 31, .08); }
+.need p { margin: 2px 0; }

@@ -212,7 +212,7 @@
         <li><span><b>Play your role.</b> Six rounds. Each has a private briefing, a coded fragment to crack, and orders to give.</span></li>
         <li><span><b>Post your file to Padlet.</b> You finish with a case card and a Signal ID.</span></li>
         <li><span><b>Decode classmates.</b> Paste their Signal IDs into the decoder. You see what their role did, and pieces of the secret messages unlock.</span></li>
-                <li><span><b>Reply on Padlet.</b> Reply to each classmate you decode, using a question you pick from the list.</span></li>
+                <li><span><b>Reply on Padlet.</b> Reply to 2 classmates you decode. The game writes the reply and copies it for you.</span></li>
         <li><span><b>Submit the decoded messages.</b> You cannot read all six messages alone. Decode all four other roles, then turn in the decoded messages on edio for credit for the assignment. Do not post them on Padlet.</span></li></ol></section></main>`;
     swapScene($(".hero-art"));
     $("#start").addEventListener("click", () => { if (saved) store.set("cb_game", null); go("pick"); });
@@ -414,8 +414,8 @@
       ${badgesHTML()}
       <p class="note"><b>Think about it.</b> ${esc(e.ask)}</p><p class="note"><b>Real people in roles like yours.</b> ${esc(role.echo)}</p>
       <section><h2>Your decisions</h2><ol class="journey">${S.log.map((x) => `<li><span class="jd">${esc(rDate(role.id, x.i))}</span><b>${esc(rTitle(role.id, x.i))}</b><span>${"ABC"[x.slot]}. ${esc(x.label)}</span><span class="jk">${esc(KIND_NOTE[x.kind])}${x.kind === realKind(role.id, x.i) ? " · ✓ same as history" : " · different from history"}</span></li>`).join("")}</ol><p class="small">You matched the real decision in ${S.log.filter((x) => x.kind === realKind(role.id, x.i)).length} of 6 rounds.</p></section>
-      <section class="decoder"><h2>Decode a classmate</h2><p>Find a classmate's Padlet card from a different role. Type their Signal ID here. You will see their choices and unlock their pieces of the messages.</p>${decoderForm()}</section>
-      <section class="padlet"><h2>Post to Padlet</h2><p>Add your card image and post text to the class Padlet. Then decode classmates from other roles with the Signal IDs on their cards, and reply to their posts.</p><p class="small"><b>Come back later:</b> every reply on your card has a SEAL code. Paste the replies into <b>Who trusted you?</b> on the Decoder board to see what your classmates decided.</p>
+      <section class="decoder"><h2>Decode a classmate</h2><p>Find a classmate's Padlet card from a different role. Copy their whole post and paste it here. You will see their choices and unlock their pieces of the messages.</p>${decoderForm()}</section>
+      <section class="padlet"><h2>Post to Padlet</h2><p>Add your card image and post text to the class Padlet. Then decode classmates from other roles by pasting their posts into the Decoder board, and reply to 2 of them.</p><p class="small"><b>Come back later:</b> every reply on your card has a SEAL code. Paste the replies into <b>Who trusted you?</b> on the Decoder board to see what your classmates decided.</p>
         <div class="cardwrap" id="cardsvg">${cardSVG()}</div><div class="row"><button class="btn" id="dl">Download card image</button><button class="btn ghost" id="cpimg">Copy image</button></div>
         <div class="field"><label for="qsel">Question for your classmates</label><select id="qsel">${postQs(role, e).map((q, i) => `<option value="${i}">${esc(clip(q, 100))}</option>`).join("")}</select></div>
         <div class="field"><label for="qsel2">Second question (optional)</label><select id="qsel2"><option value="-1">No second question</option>${postQs(role, e).map((q, i) => `<option value="${i}">${esc(clip(q, 100))}</option>`).join("")}</select></div>
@@ -479,7 +479,7 @@
   }
 
   /* ---------- decoder ---------- */
-  function decoderForm() { return `<div class="dform"><label for="sid" class="sr">Their Padlet post or Signal ID</label><textarea id="sid" rows="2" placeholder="Copy their whole Padlet post and paste it here (or type their Signal ID)" autocomplete="off" spellcheck="false"></textarea><button class="btn" id="dgo">Decode</button></div><p class="err" id="derr" role="alert"></p><div id="dres" aria-live="polite"></div>`; }
+  function decoderForm() { return `<div class="need" id="need" aria-live="polite">${needHTML(board())}</div><div class="dform"><label for="sid" class="sr">Their Padlet post or Signal ID</label><textarea id="sid" rows="2" placeholder="Copy their whole Padlet post and paste it here (or type their Signal ID)" autocomplete="off" spellcheck="false"></textarea><button class="btn" id="dgo">Decode</button></div><p class="err" id="derr" role="alert"></p><div id="dres" aria-live="polite"></div>`; }
   /* v7: students can paste a classmate's whole Padlet post. Prefer the ID after "SIGNAL ID", else the first ID that decodes. */
   function findSignal(raw) {
     const t = String(raw || "").toUpperCase(), RE = /[A-Z]{2}\s*-\s*[ABC]{6}(?:\s*-\s*[A-Z0-9])?\s*-\s*[A-Z0-9]{2}(?![A-Z0-9])/g;
@@ -494,7 +494,7 @@
       if (!p) { err.textContent = raw.trim().length > 20 ? "No Signal ID found in what you pasted. Copy their whole Padlet post, including the SIGNAL ID line." : "That Signal ID does not decode. Check the letters and dashes. It looks like XX-ABCABC-K-YY."; return; }
       $("#sid").value = "";
       err.textContent = ""; const b = board(); if (b.sig.indexOf(p.id) < 0) { b.sig.push(p.id); store.set("cb_board", b); }
-      lastDecoded = p.id; showDecoded(p);
+      lastDecoded = p.id; showDecoded(p); paintNeed();
     };
     $("#dgo").addEventListener("click", run); $("#sid").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); run(); } });
     if (lastDecoded && view === "board") { const p = L.parseSignal(lastDecoded); if (p) { $("#sid").value = ""; } }
@@ -511,6 +511,21 @@
       <h3 class="theirs">Their choices</h3><ol class="journey">${rows}</ol></div>`;
   }
 
+  /* v8: students reply to 2 classmates (not every one they decode). b.replied lists the IDs whose reply they copied. */
+  const REPLIES_NEEDED = 2;
+  const repliedIds = (b) => (b.replied || []).filter((id) => !isMine(id));
+  /* v8: the "still needed" line on the Decoder board: roles whose pieces are missing, and replies done. */
+  function needHTML(b) {
+    const known = knownFn(b), own = b.own && b.own.role, miss = D.ROLES.filter((x) => !D.ROUNDS.every((rd, r) => known(r, x.id)));
+    const others = miss.filter((x) => x.id !== own), mineMiss = miss.some((x) => x.id === own);
+    const names = others.map((x) => `<b>${esc(x.name)}</b>`), list = names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+    const roles = !miss.length ? `<b>You have every role.</b> All six messages are decoded.`
+      : (others.length ? `<b>Still needed:</b> ${list}. Find a card from ${others.length === 1 ? "that role" : "each"} in ${others.length === 1 ? "its" : "their"} column on the Padlet.` : "") + (mineMiss ? ` ${others.length ? "And finish" : "<b>Still needed:</b> finish"} your own game for the rest of your role's pieces.` : "");
+    const n = Math.min(repliedIds(b).length, REPLIES_NEEDED);
+    const reps = `<b>Replies:</b> ${n} of ${REPLIES_NEEDED} done.${n >= REPLIES_NEEDED ? " More are welcome, but not needed." : ""}`;
+    return `<p>${roles}</p><p>${reps}</p>`;
+  }
+  const paintNeed = () => { const el = $("#need"); if (el) el.innerHTML = needHTML(board()); };
   let repaintReply = null;
   function showDecoded(p) { $("#dres").innerHTML = decodedCard(p); repaintReply = bindReply(p); bindInter(p); }
 
@@ -549,15 +564,17 @@
     const ab = $("#iarch"); if (ab) ab.addEventListener("click", () => openArchive(p.role.id));
     const b0 = board(), filed = (b0.verdicts || {})[p.id];
     const rb = $("#replybox");
-    if (filed) { curInt = null; if (rb) rb.hidden = false; box.innerHTML = `<p class="vfiled"><b>Verdict sealed.</b> ${esc(vdText(p, filed))} It is inside your reply, below.</p>${unsealed() ? vdResult(p, filed) : `<p class="small">You find out if you were right once you have decoded all six messages.</p>`}`; return; }
+    if (filed) { curInt = null; if (rb) rb.hidden = false; box.innerHTML = `<p class="vfiled"><b>Verdict sealed.</b> ${esc(vdText(p, filed))} It is inside your reply${repliedIds(b0).indexOf(p.id) >= 0 || repliedIds(b0).length < REPLIES_NEEDED ? ", below" : " if you choose to send one"}.</p>${unsealed() ? vdResult(p, filed) : `<p class="small">You find out if you were right once you have decoded all six messages.</p>`}`; return; }
     /* v7: one click seals the verdict, writes the reply and copies it. The reply block stays hidden until then. */
     curInt = p.id; if (rb) rb.hidden = true;
     const opt = (val, key, txt) => `<button class="mitem" data-v="${val}"><span class="key">${key}</span><span>${txt}</span></button>`;
-    box.innerHTML = `<h3>Do you trust this agent?</h3><div class="mlist two" role="group" aria-label="Verdict">${opt("A", "T", "<b>TRUST.</b> All three reports are true.")}${opt("D", "X", "<b>TRAITOR.</b> One report is a lie.")}</div><p class="small">One click seals your verdict and copies your reply. A sealed verdict can't be changed.</p>`;
+    box.innerHTML = `<h3>Do you trust this agent?</h3><div class="mlist two" role="group" aria-label="Verdict">${opt("A", "T", "<b>TRUST.</b> All three reports are true.")}${opt("D", "X", "<b>TRAITOR.</b> One report is a lie.")}</div><p class="small">${repliedIds(board()).length >= REPLIES_NEEDED ? "One click seals your verdict. You already have your 2 replies, so a reply to this agent is optional." : "One click seals your verdict and copies your reply."} A sealed verdict can't be changed.</p>`;
     $$("[data-v]", box).forEach((x) => x.addEventListener("click", () => {
       const b = board(); b.verdicts = b.verdicts || {}; if (b.verdicts[p.id]) return; b.verdicts[p.id] = { v: x.dataset.v }; store.set("cb_board", b);
       bindInter(p); if (repaintReply) repaintReply();
-      const c = $("#cprep"); if (c) { c.click(); c.closest(".replybox").scrollIntoView({ block: "center", behavior: "smooth" }); }
+      const b2 = board(), done = repliedIds(b2).length >= REPLIES_NEEDED && repliedIds(b2).indexOf(p.id) < 0, c = $("#cprep");
+      if (c && !done) { c.click(); c.closest(".replybox").scrollIntoView({ block: "center", behavior: "smooth" }); }
+      else if (c) { const m = $("#rmsg"); if (m) m.textContent = "You already have your 2 replies, so this one is optional. Want to reply anyway? Click Copy reply."; }
     }));
   }
 
@@ -619,7 +636,12 @@
       ta.value = [`DECODED ${p.id} (${p.role.name})`, ...(proof ? [`PROOF ${proof}`] : []), ...(seal ? [`SEAL ${seal}`] : []), L1, `ROUND ${r + 1}: ${rTitle(p.role.id, r)}`, L1, `You chose: ${p.picks[r].label}`, ...(mine ? ["", mine] : []), "", L1, "QUESTION FOR YOU", L1, qs[+rq.value || 0]].join("\n");
     };
     rrs.addEventListener("change", fill); rq.addEventListener("change", paint); fill();
-    $("#cprep").addEventListener("click", (e) => copyText(ta.value, e.currentTarget, "Reply copied. Paste it as a comment under their card on the Padlet."));
+    $("#cprep").addEventListener("click", (e) => {
+      const b = board(); b.replied = b.replied || []; if (!isMine(p.id) && b.replied.indexOf(p.id) < 0) { b.replied.push(p.id); store.set("cb_board", b); }
+      const n = repliedIds(b).length, k = repliedIds(b).indexOf(p.id) + 1;
+      copyText(ta.value, e.currentTarget, "Reply copied" + (k && k <= REPLIES_NEEDED ? ` (${k} of ${REPLIES_NEEDED})` : "") + ". Paste it as a comment under their card on the Padlet." + (n === REPLIES_NEEDED && k === n ? " That's your 2 replies." : ""));
+      paintNeed();
+    });
     return paint;
   }
 
@@ -630,7 +652,7 @@
     return `MISSION COMPLETE · ${nm.toUpperCase()}${mine ? " · " + mine.name : ""}\nI decoded all six secret messages with help from classmates.\n\n` + D.ROUNDS.map((r, i) => `${i + 1}. Message ${i + 1} (${r.date}): ${r.msg.join(" ")}`).join("\n") + `\n\nMy Signal ID: ${Object.values(b.mine || {}).join(", ") || "not recorded"}\nDecoded with Signal IDs from: ${ids || "none yet"}\n` + replyLine(parsed) + verdictLines(b) + (refl ? "\n" + refl + "\n" : "");
   }
   /* Reply proof codes in the submission: "Reply codes: <ID> R-XXX; …", one per decoded classmate. Teacher Check recomputes them. */
-  function replyLine(parsed) { const me = myId(), list = parsed.filter((p) => !isMine(p.id)); if (!me || !list.length) return "Reply codes: none\n"; return `Reply codes: ${list.map((p) => p.id + " " + L.proofCode(me, p.id)).join("; ")}\n`; }
+  function replyLine(parsed) { const me = myId(), b = board(), list = parsed.filter((p) => !isMine(p.id) && (!b.replied || b.replied.indexOf(p.id) >= 0)); if (!me || !list.length) return "Reply codes: none\n"; return `Reply codes: ${list.map((p) => p.id + " " + L.proofCode(me, p.id)).join("; ")}\n`; }
   /* Verdicts in the submission (v6): "<ID> A" (trust) or "<ID> D" (traitor). Teacher Check rescores them from the IDs. */
   function verdictList(b) { return Object.keys(b.verdicts || {}).map((id) => ({ id, vd: b.verdicts[id], p: L.parseSignal(id) })).filter((x) => x.p && x.p.alleg != null); }
   function verdictLines(b) {
@@ -717,7 +739,7 @@
     $("#clrno").addEventListener("click", () => toggle(false));
     box.addEventListener("keydown", (e) => { if (e.key === "Escape") toggle(false); });
     const done = (msg) => { renderBoard(); bindGo(); const m = $("#clrmsg"); if (m) m.textContent = msg; const c = $("#clr"); if (c) c.focus({ preventScroll: false }); };
-    $("#clrsig").addEventListener("click", () => { const b2 = board(); const n = b2.sig.length; b2.sig = []; store.set("cb_board", b2); lastDecoded = null; done(n ? `Cleared ${n} classmate Signal ID${n === 1 ? "" : "s"}.` : "There were no classmate Signal IDs to clear."); });
+    $("#clrsig").addEventListener("click", () => { const b2 = board(); const n = b2.sig.length; b2.sig = []; b2.replied = []; store.set("cb_board", b2); lastDecoded = null; done(n ? `Cleared ${n} classmate Signal ID${n === 1 ? "" : "s"}.` : "There were no classmate Signal IDs to clear."); });
     $("#clrall").addEventListener("click", () => {
       const saved = loadGame(), cur = S && S.role ? S.role.id : saved ? saved.S.role.id : null, b2 = board(); b2.sig = []; lastDecoded = null;
       const keep = (o) => { const r = {}; if (cur && o && o[cur] !== undefined) r[cur] = o[cur]; return r; };

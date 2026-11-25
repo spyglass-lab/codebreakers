@@ -37,7 +37,8 @@ const { chromium } = require('playwright'); const L = require('./src/logic.js');
   if (/SEAL /.test(await p.inputValue('#rtext'))) errs.push('REPLY has a SEAL before a verdict');
   if (await p.$('.cmp')) errs.push('COMPARE box shown with no teammate decoded'); if (!/Go with your gut/.test(await p.innerText('.interro'))) errs.push('gut-call line missing');
   await p.click('[data-v="D"]'); await p.waitForSelector('.vfiled'); await p.waitForTimeout(300);
-  if (!/Reply copied/.test(await p.textContent('#rmsg'))) errs.push('ONE CLICK did not copy the reply: ' + await p.textContent('#rmsg'));
+  if (!/Reply copied \(1 of 2\)/.test(await p.textContent('#rmsg'))) errs.push('ONE CLICK did not copy the reply: ' + await p.textContent('#rmsg'));
+  { const nd = await p.innerText('#need'); if (!/Replies: 1 of 2 done/.test(nd) || !/Still needed:/.test(nd) || nd.includes(L.roleById(o).name)) errs.push('NEED line wrong after first decode: ' + nd); }
   if (!(await p.isVisible('#cprep'))) errs.push('reply block hidden after verdict');
   { const rt = await p.inputValue('#rtext'), r = +(await p.inputValue('#rr')); const me = L.parseSignal(id).picks[r].label, them = L.parseSignal(sid).picks[r].label; if (me === them && L.parseSignal(id).picks.some((x, i) => x.label !== L.parseSignal(sid).picks[i].label)) errs.push('AUTO ROUND picked a round with the same choice'); if (!rt.includes('ROUND ' + (r + 1))) errs.push('reply round mismatch'); }
   { const rt = await p.inputValue('#rtext'); if (!rt.includes('SEAL ' + L.sealCode(id, sid, 1))) errs.push('REPLY has no matching SEAL:\n' + rt); } await p.waitForSelector('.vfiled'); await p.screenshot({ path: `shots/${mode}-decoded.png`, fullPage: true });
@@ -48,6 +49,14 @@ const { chromium } = require('playwright'); const L = require('./src/logic.js');
   const S2 = L.newState(L.roleById(o), 'y'); for (let r = 0; r < 6; r++) { S2.i = r; L.choose(S2, (r + 1) % 3); } S2.alg = { v: 0, r: 1 }; const sid2 = L.signalId(S2);
   await p.fill('#sid', sid2); await p.click('#dgo'); await p.waitForSelector('.cmprow'); { const c = await p.innerText('.cmp'); if (!c.includes(sid) || !/Report 2 is different/.test(c) || /Report [13] is different/.test(c)) errs.push('COMPARE wrong: ' + c); }
   await p.screenshot({ path: `shots/${mode}-compare.png`, fullPage: true });
+  await p.click('[data-v="A"]'); await p.waitForSelector('.vfiled'); await p.waitForTimeout(300);
+  if (!/Reply copied \(2 of 2\)/.test(await p.textContent('#rmsg'))) errs.push('SECOND reply not copied: ' + await p.textContent('#rmsg'));
+  { const o3 = ['BP', 'NV', 'FA', 'MI', 'UL'].find((x) => x !== role && x !== o), S3 = L.newState(L.roleById(o3), 'z'); for (let r = 0; r < 6; r++) { S3.i = r; L.choose(S3, (r + 2) % 3); } S3.alg = { v: 0, r: 1 }; const sid3 = L.signalId(S3);
+    await p.fill('#sid', sid3); await p.click('#dgo'); await p.waitForSelector('[data-v]'); await p.click('[data-v="A"]'); await p.waitForSelector('.vfiled'); await p.waitForTimeout(300);
+    const m = await p.textContent('#rmsg'); if (/Reply copied/.test(m) || !/optional/.test(m)) errs.push('THIRD verdict copied a reply: ' + m);
+    const nd = await p.innerText('#need'); if (!/Replies: 2 of 2 done/.test(nd)) errs.push('NEED line after 2 replies: ' + nd);
+    await p.screenshot({ path: `shots/${mode}-third.png`, fullPage: true });
+    const bd2 = await p.evaluate(() => JSON.parse(localStorage.getItem('cb_board'))); if ((bd2.replied || []).join() !== [sid, sid2].join()) errs.push('REPLIED list wrong: ' + JSON.stringify(bd2.replied)); }
   // Who trusted you?: two classmates' seals for this player's card (one trust, one traitor), one pasted twice
   await p.fill('#sealin', 'DECODED x\nSEAL ' + L.sealCode(sid, id, 0) + '\nblah\nSEAL ' + L.sealCode(sid2, id, 1) + '\nSEAL ' + L.sealCode(sid2, id, 1)); await p.click('#sealgo'); await p.waitForSelector('.sealres');
   { const t = await p.innerText('.seals'); const want = alg ? 'You fooled 1 of 2' : '1 trusted you'; if (!t.includes(want) || !/Opened 2 new seals\. 1 already opened/.test(t)) errs.push('SEALS wrong: ' + t); }
